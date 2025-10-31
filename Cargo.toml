@@ -1,0 +1,21 @@
+[package]
+name = "pcc_dvp_camera"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+embedded-hal = { version = "1.0.0", features = ["defmt-03"] }
+atsamd51-pcc = { git="https://github.com/QuartzShard/atsamd51-pcc", default-features = false, features = [] }
+defmt = "1.0.1"
+atsamd-hal = "0.22.2"
+
+[features]
+default = ["ov5640", "samd51p"]
+ov5640 = []
+samd51g = ["atsamd51-pcc/samd51g", "atsamd-hal/samd51g"]
+samd51j = ["atsamd51-pcc/samd51j", "atsamd-hal/samd51j"]
+samd51n = ["atsamd51-pcc/samd51n", "atsamd-hal/samd51n"]
+samd51p = ["atsamd51-pcc/samd51p", "atsamd-hal/samd51p"]
+same51g = ["atsamd51-pcc/same51g", "atsamd-hal/same51g"]
+same51j = ["atsamd51-pcc/same51j", "atsamd-hal/same51j"]
+same51n = ["atsamd51-pcc/same51n", "atsamd-hal/same51n"]
