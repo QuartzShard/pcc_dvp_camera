@@ -10,7 +10,7 @@ defmt = "1.0.1"
 atsamd-hal = "0.22.2"
 
 [features]
-default = ["ov5640", "samd51p"]
+default = ["ov5640", "samd51j"]
 ov5640 = []
 samd51g = ["atsamd51-pcc/samd51g", "atsamd-hal/samd51g"]
 samd51j = ["atsamd51-pcc/samd51j", "atsamd-hal/samd51j"]

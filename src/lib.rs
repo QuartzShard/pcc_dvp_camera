@@ -2,7 +2,7 @@
 
 use atsamd51_pcc::{self as pcc, Pcc};
 
-use atsamd_hal::{clock::v2::gclk::GclkOut, dmac::{self, BufferPair, Channel, Transfer, TriggerSource}, fugit::{self, ExtU32 as _}, gpio::{Pin, PushPullOutput, PA15, PB19}};
+use atsamd_hal::{clock::v2::gclk::GclkOut, dmac::{self, BufferPair, Channel, Transfer, TriggerSource}, fugit::{self, ExtU32 as _}, gpio::{Pin, PushPullOutput, PA15, PB15}};
 use defmt::{self as log, Format};
 use embedded_hal::{delay::DelayNs, digital::OutputPin, i2c::I2c};
 
@@ -19,7 +19,7 @@ pub struct Camera<C: dmac::AnyChannel, I2C: embedded_hal::i2c::I2c, D: embedded_
 	i2c: I2C,
 	cam_rst: Pin<PA15, PushPullOutput>,
 	cam_sync: pcc::SyncPins,
-	cam_clk: GclkOut<PB19>,
+	cam_clk: GclkOut<PB15>,
 	pub other_buffer: Option<*mut FrameBuf>,
     delay: D
 }
@@ -84,7 +84,7 @@ where
 		channel: Channel<Id, dmac::Ready>,
 		i2c: I2C,
 		mut pa15: Pin<PA15, PushPullOutput>,
-		pb19: GclkOut<PB19>,
+		pb19: GclkOut<PB15>,
         delay: D
 	) -> Self {
 		pa15.set_low().ok();
