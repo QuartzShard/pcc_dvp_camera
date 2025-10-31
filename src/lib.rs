@@ -6,7 +6,7 @@ use atsamd_hal::{clock::v2::gclk::GclkOut, dmac::{self, BufferPair, Channel, Tra
 use defmt::{self as log, Format};
 use embedded_hal::{delay::DelayNs, digital::OutputPin, i2c::I2c};
 
-mod sensors;
+pub mod sensors;
 
 use sensors::sensor::*;
 
