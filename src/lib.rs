@@ -2,6 +2,9 @@
 
 use atsamd51_pcc::{self as pcc, Pcc};
 
+#[cfg(feature="adafruit-branch")]
+use atsamd_hal_git as atsamd_hal;
+
 use atsamd_hal::{clock::v2::gclk::GclkOut, dmac::{self, BufferPair, Channel, Transfer, TriggerSource}, fugit::{self, ExtU32 as _}, gpio::{Pin, PushPullOutput, PA15, PB15}};
 use defmt::{self as log, Format};
 use embedded_hal::{delay::DelayNs, digital::OutputPin, i2c::I2c};

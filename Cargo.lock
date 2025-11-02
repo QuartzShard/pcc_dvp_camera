@@ -21,11 +21,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0943a1a3f7f84d98565abd66e7a451cd189f2e6c7e925a4cd0f3d42b2e0021d8"
 dependencies = [
  "aes",
- "atsamd-hal-macros",
+ "atsamd-hal-macros 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "atsamd51g",
  "atsamd51j",
  "atsamd51n",
- "atsamd51p",
+ "atsamd51p 0.14.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "atsame51g",
  "atsame51j",
  "atsame51n",
@@ -34,6 +34,38 @@ dependencies = [
  "cipher",
  "cortex-m",
  "critical-section",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
+ "embedded-hal-nb",
+ "embedded-io",
+ "fugit",
+ "heapless",
+ "modular-bitfield",
+ "nb 1.1.0",
+ "num-traits",
+ "opaque-debug",
+ "paste",
+ "rand_core 0.9.3",
+ "seq-macro",
+ "sorted-hlist",
+ "typenum",
+ "void",
+]
+
+[[package]]
+name = "atsamd-hal"
+version = "0.22.2"
+source = "git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads#c2a6ecb19cb60491559ce0febd3a3d08d3fb87eb"
+dependencies = [
+ "aes",
+ "atsamd-hal-macros 0.3.0 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
+ "atsamd51p 0.14.2 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
+ "bitfield",
+ "bitflags 2.10.0",
+ "cipher",
+ "cortex-m",
+ "critical-section",
+ "defmt 1.0.1",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
  "embedded-hal-nb",
@@ -66,11 +98,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "atsamd-hal-macros"
+version = "0.3.0"
+source = "git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads#c2a6ecb19cb60491559ce0febd3a3d08d3fb87eb"
+dependencies = [
+ "litrs",
+ "phf",
+ "phf_codegen",
+ "serde",
+ "serde_yaml",
+]
+
+[[package]]
 name = "atsamd51-pcc"
 version = "0.1.0"
-source = "git+https://github.com/QuartzShard/atsamd51-pcc#a22e56dc0972c5f1659465d68625b715f8b605dc"
+source = "git+https://github.com/QuartzShard/atsamd51-pcc#6f54dca6a0f41d2a0d89cd9333ef2657f0db30e0"
 dependencies = [
- "atsamd-hal",
+ "atsamd-hal 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "atsamd-hal 0.22.2 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
+ "mutually_exclusive_features",
 ]
 
 [[package]]
@@ -113,6 +159,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12556e5e96dc6527acc472b8432cee241274a2278732b1068984df7a678984d3"
 dependencies = [
  "cortex-m",
+ "critical-section",
+ "vcell",
+]
+
+[[package]]
+name = "atsamd51p"
+version = "0.14.2"
+source = "git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads#c2a6ecb19cb60491559ce0febd3a3d08d3fb87eb"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
  "critical-section",
  "vcell",
 ]
@@ -214,6 +271,26 @@ dependencies = [
  "bitfield",
  "embedded-hal 0.2.7",
  "volatile-register",
+]
+
+[[package]]
+name = "cortex-m-rt"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "801d4dec46b34c299ccf6b036717ae0fce602faa4f4fe816d9013b9a7c9f5ba6"
+dependencies = [
+ "cortex-m-rt-macros",
+]
+
+[[package]]
+name = "cortex-m-rt-macros"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e37549a379a9e0e6e576fd208ee60394ccb8be963889eebba3ffe0980364f472"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.108",
 ]
 
 [[package]]
@@ -416,6 +493,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mutually_exclusive_features"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e94e1e6445d314f972ff7395df2de295fe51b71821694f0b0e1e79c4f12c8577"
+
+[[package]]
 name = "nb"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -455,7 +538,8 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 name = "pcc_dvp_camera"
 version = "0.1.0"
 dependencies = [
- "atsamd-hal",
+ "atsamd-hal 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "atsamd-hal 0.22.2 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
  "atsamd51-pcc",
  "defmt 1.0.1",
  "embedded-hal 1.0.0",
