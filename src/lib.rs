@@ -37,7 +37,7 @@ impl seal::Sealed for Enabled {}
 impl State for Disabled {}
 impl seal::Sealed for Disabled {}
 
-pub struct Camera<C: dmac::AnyChannel, I2C, D: embedded_hal::delay::DelayNs, State> {
+pub struct Camera<C: dmac::AnyChannel, I2C, D: embedded_hal::delay::DelayNs, S: State> {
     pcc_xfer_handle: Option<Transfer<C, BufferPair<Pcc<PccMode>, &'static mut FrameBuf>>>,
     i2c: I2C,
     cam_rst: Pin<PA15, PushPullOutput>,
@@ -45,7 +45,7 @@ pub struct Camera<C: dmac::AnyChannel, I2C, D: embedded_hal::delay::DelayNs, Sta
     cam_clk: GclkOut<PB15>,
     pub other_buffer: Option<*mut FrameBuf>,
     delay: D,
-    _en: PhantomData<State>,
+    _en: PhantomData<S>,
 }
 
 #[derive(Debug, Default, Clone, Copy, defmt::Format)]
@@ -94,6 +94,13 @@ static mut FRAMEBUFFER_2: FrameBuf = [0; H_RES * V_RES * 2];
 // 888
 //static mut FRAMEBUFFER: FrameBuf = [0; H_RES * V_RES * 3];
 //static mut FRAMEBUFFER_2: FrameBuf = [0; H_RES * V_RES * 3];
+
+unsafe impl<Id, I2C, D, S> Send for Camera<Channel<Id, dmac::Busy>, I2C, D, S> 
+where
+    Id: dmac::ChId,
+    D: embedded_hal::delay::DelayNs,
+    S: State
+{}
 
 impl<Id, I2C, D> Camera<Channel<Id, dmac::Busy>, I2C, D, Enabled>
 where
