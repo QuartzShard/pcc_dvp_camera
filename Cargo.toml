@@ -9,6 +9,7 @@ atsamd51-pcc = { git="https://github.com/QuartzShard/atsamd51-pcc", default-feat
 defmt = "1.0.1"
 atsamd-hal = { version = "0.22.2", optional = true }
 atsamd-hal-git = { package = "atsamd-hal", git="https://github.com/QuartzShard/atsamd", branch="extra_i2c_pads", optional = true, features = ["samd51p", "samd51p-rt", "dma", "defmt"] }
+embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
 
 [features]
 default = ["ov5640", "samd51j"]
