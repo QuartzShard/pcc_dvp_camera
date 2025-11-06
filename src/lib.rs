@@ -209,7 +209,7 @@ where
     <I2C as embedded_hal::i2c::ErrorType>::Error: Format,
     D: embedded_hal::delay::DelayNs,
 {
-    fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
+    pub fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
         log::info!("Writing {:#X} to {:#X}", val, reg);
         self.i2c
             .write(CAM_ADDR, &[(reg >> 8) as u8, reg as u8, val])?;
@@ -227,7 +227,7 @@ where
         Ok(())
     }
 
-    fn read_reg(&mut self, reg: u16, buf: &mut [u8]) -> Result<(), I2C::Error> {
+    pub fn read_reg(&mut self, reg: u16, buf: &mut [u8]) -> Result<(), I2C::Error> {
         log::info!("Reading from {:#X}", reg);
         self.i2c
             .write_read(CAM_ADDR, &[(reg >> 8) as u8, reg as u8], buf)?;
@@ -410,7 +410,7 @@ where
     <I2C as embedded_hal_async::i2c::ErrorType>::Error: Format,
     D: embedded_hal::delay::DelayNs,
 {
-    async fn write_reg_async(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
+    pub async fn write_reg_async(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
         log::info!("Writing {:#X} to {:#X}", val, reg);
         self.i2c
             .write(CAM_ADDR, &[(reg >> 8) as u8, reg as u8, val])
@@ -429,7 +429,7 @@ where
         Ok(())
     }
 
-    async fn read_reg_async(&mut self, reg: u16, buf: &mut [u8]) -> Result<(), I2C::Error> {
+    pub async fn read_reg_async(&mut self, reg: u16, buf: &mut [u8]) -> Result<(), I2C::Error> {
         log::info!("Reading from {:#X}", reg);
         self.i2c
             .write_read(CAM_ADDR, &[(reg >> 8) as u8, reg as u8], buf)
