@@ -173,7 +173,7 @@ pub const INIT_REGS: [(u16, u8); 139] = [
     (0x3812, (V_OFFSET >> 8) as u8),   // V offset high
     (0x3813, (V_OFFSET & 0xFF) as u8), // V offset low
     // === DVP CONTROL ===
-    (0x4740, 0x21), // PCLK active high (bit 5), HREF/VSYNC active low
+    (0x4740, 0x2D), // PCLK active high (bit 5), HREF/VSYNC active low
     //
     (SYSTEM_CTRL0, 0x02), // Power up
     (REG_DLY, 100),
