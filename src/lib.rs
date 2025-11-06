@@ -43,7 +43,7 @@ pub struct Camera<C: dmac::AnyChannel, I2C, D: embedded_hal::delay::DelayNs, S: 
     cam_rst: Pin<PA15, PushPullOutput>,
     cam_sync: pcc::SyncPins,
     cam_clk: GclkOut<PB15>,
-    pub other_buffer: Option<*mut FrameBuf>,
+    pub other_buffer: Option<&'static mut FrameBuf>,
     delay: D,
     _en: PhantomData<S>,
 }
@@ -141,7 +141,8 @@ where
                 .begin(TriggerSource::PccRx, dmac::TriggerAction::Burst),
         );
 
-        let other_buffer = unsafe { Some(&raw mut FRAMEBUFFER_2) };
+        #[allow(static_mut_refs)]
+        let other_buffer = unsafe { Some(&mut FRAMEBUFFER_2) };
         Self {
             pcc_xfer_handle,
             i2c,
@@ -246,13 +247,11 @@ where
         let other_buf = self
             .other_buffer
             .take()
-            .map(|b| unsafe { b.as_mut() })
-            .flatten()
             .unwrap();
         while !xfer.complete() {}
         let framebuffer = xfer.recycle_source(other_buf).unwrap();
 
-        self.other_buffer.replace(framebuffer);
+        //self.other_buffer.replace(framebuffer);
         //if pcc.read_flags().ovre().bit_is_set() {
         // 	log::error!("PCC Overrun!")
         //  }
@@ -451,13 +450,11 @@ where
         let other_buf = self
             .other_buffer
             .take()
-            .map(|b| unsafe { b.as_mut() })
-            .flatten()
             .unwrap();
         while !xfer.complete() {}
         let framebuffer = xfer.recycle_source(other_buf).unwrap();
 
-        self.other_buffer.replace(framebuffer);
+        //self.other_buffer.replace(framebuffer);
         //if pcc.read_flags().ovre().bit_is_set() {
         // 	log::error!("PCC Overrun!")
         //  }
