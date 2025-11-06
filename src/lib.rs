@@ -257,7 +257,7 @@ where
         // 	log::error!("PCC Overrun!")
         //  }
         // 	pcc.configure(|_| ()); // Off and on again
-        let frame: &Frame = unsafe { core::mem::transmute(&mut *framebuffer) };
+        // let frame: &Frame = unsafe { core::mem::transmute(&mut *framebuffer) };
         //let frame: &Frame = &[[Pixel::default(); H_RES]; V_RES];
         // let frame_u16: &[u16; H_RES * V_RES] = unsafe {core::mem::transmute(&mut *framebuffer)};
         // Stop frame capture
