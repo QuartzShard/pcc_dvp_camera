@@ -20,7 +20,7 @@ const _: () = assert!(
 pub const REG_DLY: u16 = 0xFFFF;
 // 7-bit I2C address (0x78 >> 1)
 pub const CAM_ADDR: u8 = 0x3C;
-pub const INIT_REGS: [(u16, u8); 138] = [
+pub const INIT_REGS: [(u16, u8); 139] = [
     (SYSTEM_CTRL0, 0x82), // software reset
     (REG_DLY, 10),        // delay 10ms
     (SYSTEM_CTRL0, 0x42), // power down
@@ -173,7 +173,7 @@ pub const INIT_REGS: [(u16, u8); 138] = [
     (0x3812, (V_OFFSET >> 8) as u8),   // V offset high
     (0x3813, (V_OFFSET & 0xFF) as u8), // V offset low
     // === DVP CONTROL ===
-    // (0x4740, 0x2D), // PCLK active high (bit 5), Gate PCLK unser VSYNC, HREF/VSYNC active high
+    (0x4740, 0x2D), // PCLK active high (bit 5), Gate PCLK unser VSYNC, HREF/VSYNC active high
     //
     (SYSTEM_CTRL0, 0x02), // Power up
     (REG_DLY, 100),
