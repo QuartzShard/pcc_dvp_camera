@@ -131,10 +131,11 @@ where
         let framebuffer = unsafe { &mut FRAMEBUFFER };
         let cam_sync = pcc.take_sync_pins().expect("Sync pins have gone missing!");
         pcc.configure(|pcc| {
-            pcc.mr().write(|w|
-                // Configure Clear If Disabled of VSYNC falling edge
-                unsafe { w.cid().bits(1) }
-            );
+            pcc.mr().write(|w| {
+                w.alwys().set_bit();
+                // Configure Clear If Disabled on HSYNC falling edge
+                unsafe { w.cid().bits(2) }
+            });
         });
         let pcc_xfer_handle = Some(
             Transfer::new(channel, pcc, framebuffer, false)
