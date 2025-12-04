@@ -132,9 +132,8 @@ where
         let cam_sync = pcc.take_sync_pins().expect("Sync pins have gone missing!");
         pcc.configure(|pcc| {
             pcc.mr().write(|w| {
-                w.alwys().set_bit();
-                // Configure Clear If Disabled on HSYNC falling edge
-                unsafe { w.cid().bits(2) }
+                // Configure Clear If Disabled on VSYNC falling edge
+                unsafe { w.cid().bits(1) }
             });
         });
         let pcc_xfer_handle = Some(
