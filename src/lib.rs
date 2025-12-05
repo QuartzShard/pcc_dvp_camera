@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use atsamd51_pcc::{self as pcc, Pcc};
+use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _};
 
 #[cfg(feature = "adafruit-branch")]
 use atsamd_hal_git as atsamd_hal;
@@ -37,6 +37,7 @@ impl seal::Sealed for Enabled {}
 impl State for Disabled {}
 impl seal::Sealed for Disabled {}
 
+#[allow(private_bounds)]
 pub struct Camera<C: dmac::AnyChannel, I2C, D: embedded_hal::delay::DelayNs, S: State> {
     pcc_xfer_handle: Option<Transfer<C, BufferPair<Pcc<PccMode>, &'static mut FrameBuf>>>,
     i2c: I2C,
@@ -425,41 +426,19 @@ where
     /// The returned reference looks into a static buffer, be aware that this maye cause Strange
     /// Issues.
     pub async fn read_frame_async(&mut self) -> Result<&'static mut FrameBuf, I2C::Error> {
-        //self.write_reg(0x4202, 0x00).await?;
-        //self.write_reg(0x3008, 0x02).await?; // Exit software power down
         let xfer = self.pcc_xfer_handle.as_mut().unwrap();
+
         // log::info!("Waiting for VSync");
-        // while self.cam_sync.den1.is_high() {};
+        while self.cam_sync.den1.is_high() {};
+
         let other_buf = self
             .other_buffer
             .take()
-            .unwrap();
+            .expect("Framebuffer was not returned");
+        
         while !xfer.complete() {}
-        let framebuffer = xfer.recycle_source(other_buf).unwrap();
+        let framebuffer = xfer.recycle_source(other_buf).expect("Framebuffer mismatch");
 
-        //self.other_buffer.replace(framebuffer);
-        //if pcc.read_flags().ovre().bit_is_set() {
-        // 	log::error!("PCC Overrun!")
-        //  }
-        // 	pcc.configure(|_| ()); // Off and on again
-        // let frame: &Frame = unsafe { core::mem::transmute(&mut *framebuffer) };
-        //let frame: &Frame = &[[Pixel::default(); H_RES]; V_RES];
-        // let frame_u16: &[u16; H_RES * V_RES] = unsafe {core::mem::transmute(&mut *framebuffer)};
-        // Stop frame capture
-        //self.write_reg(0x3008, 0x42).await?; // Enter software power down
-        // self.write_reg(0x4202, 0xFF).await?;
-
-        // self.write_reg(0x4202, 0xFF).await?; // Mask Frames
-
-        //for read in framebuffer.iter_mut() {
-        //    *read = read.to_be();
-        //}
-
-        //log::info!("{:?}", framebuffer);
-
-        // self.write_reg(0x4202, 0x00).await?; // unmask frames
-        //delay().delay_ms(100);
-        //	log::debug!("Frame Mangling done");
         Ok(framebuffer)
     }
 
