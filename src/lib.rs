@@ -164,8 +164,7 @@ where
     <I2C as embedded_hal::i2c::ErrorType>::Error: Format,
     D: embedded_hal::delay::DelayNs,
 {
-    pub fn init(self) -> Result<Camera<Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
-        
+    pub fn init(self, init_regs: &[(u16, u8)]) -> Result<Camera<Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
         let mut cam = Camera {
             pcc_xfer_handle: self.pcc_xfer_handle,
             i2c: self.i2c,
@@ -184,21 +183,13 @@ where
         cam.sleep(20.millis());
 
         // Init Regs
-        cam.write_regs(&INIT_REGS)?;
+        cam.write_regs(init_regs)?;
         cam.sleep(100.millis());
 
-        cam.test_pattern(false)?;
-
-        // cam.write_reg(0x4202, 0xFF)?;
         cam.write_reg(0x3008, 0x02)?; // Exit software power down
         let id = cam.get_sensor_id()?;
         log::debug!("Sensor ID: {:#X}", id);
         assert_eq!(id, 0x5640);
-
-        let mut buf = [0u8; 1];
-        cam.read_reg(0x3039, &mut buf)?;
-        log::info!("PLL bypass: {:#x}", buf[0]);
-
         Ok(cam)
     }
 }
@@ -365,8 +356,7 @@ where
     <I2C as embedded_hal_async::i2c::ErrorType>::Error: Format,
     D: embedded_hal::delay::DelayNs,
 {
-    pub async fn init_async(self) -> Result<Camera<Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
-
+    pub async fn init_async(self, init_regs: &[(u16, u8)]) -> Result<Camera<Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
         let mut cam = Camera {
             pcc_xfer_handle: self.pcc_xfer_handle,
             i2c: self.i2c,
@@ -385,21 +375,13 @@ where
         cam.sleep(20.millis());
 
         // Init Regs
-        cam.write_regs_async(&INIT_REGS).await?;
+        cam.write_regs_async(init_regs).await?;
         cam.sleep(100.millis());
 
-        cam.test_pattern_async(false).await?;
-
-        // cam.write_reg(0x4202, 0xFF)?;
         cam.write_reg_async(0x3008, 0x02).await?; // Exit software power down
         let id = cam.get_sensor_id_async().await?;
         log::debug!("Sensor ID: {:#X}", id);
         assert_eq!(id, 0x5640);
-
-        let mut buf = [0u8; 1];
-        cam.read_reg_async(0x3039, &mut buf).await?;
-        log::info!("PLL bypass: {:#x}", buf[0]);
-
         Ok(cam)
     }
 }
