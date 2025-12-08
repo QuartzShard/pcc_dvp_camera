@@ -10,11 +10,11 @@ use atsamd_hal_git as atsamd_hal;
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
     dmac::{self, BufferPair, Channel, Transfer, TriggerSource},
-    fugit::{self, ExtU32 as _},
+    fugit::{self, ExtU32 as _, Rate},
     gpio::{PA15, PB15, Pin, PushPullOutput},
 };
 use defmt::{self as log, Format};
-use embedded_hal::{delay::DelayNs, digital::OutputPin};
+use embedded_hal::{digital::OutputPin};
 
 pub mod sensors;
 
@@ -58,19 +58,8 @@ pub struct Pixel {
 }
 
 impl Pixel {
-    pub fn as_RGB888_bytes(&self) -> [&u8; 3] {
+    pub fn as_rgb888_bytes(&self) -> [&u8; 3] {
         [&self.r, &self.g, &self.b]
-    }
-
-    fn rgb888_to_rgb565(pixel: &Pixel) -> u16 {
-        let r5: u16 = (pixel.r as u16 & 0xF8) << 8;
-        let g6: u16 = (pixel.g as u16 & 0xFC) << 3;
-        let b5: u16 = (pixel.b as u16) >> 3;
-
-        // Pack into RGB565: RRRRR GGGGGG BBBBB
-        let _565: u16 = r5 | g6 | b5;
-        //log::info!("{:?}, {:#X}", pixel, _565);
-        _565
     }
 }
 
@@ -81,7 +70,7 @@ pub type FrameBuf = [u8; H_RES * V_RES * 2];
 //pub type FrameBuf = [u8; H_RES * V_RES * 3];
 
 pub fn flatten_frame_bytes_iter(frame: &Frame) -> impl Iterator<Item = &u8> {
-    frame.into_iter().flatten().flat_map(Pixel::as_RGB888_bytes)
+    frame.into_iter().flatten().flat_map(Pixel::as_rgb888_bytes)
 }
 
 pub fn flatten_frame_bytes_magic(frame: &Frame) -> &[u8; 3 * H_RES * V_RES] {
@@ -227,6 +216,69 @@ where
         Ok(())
     }
 
+    /// Set PLL configuration and print resulting clocks
+    /// 
+    /// # Arguments
+    /// * `xclk_mhz` - Input clock frequency (typically 24MHz)
+    /// * `pll_bypass` - true to bypass PLL and use xclk directly
+    /// * `pll_multiplier` - PLL multiplier (4-252, must be even if >127)
+    /// * `pll_sys_div` - System clock divider (0-15, 0 means 1)
+    /// * `pre_div` - Pre-divider index (0-8, maps to [1, 1, 2, 3, 4, 1.5, 6, 2.5, 8])
+    /// * `root_2x` - Enable root 2x divider
+    /// * `pclk_root_div` - PCLK root divider (0-3, maps to [1, 2, 4, 8])
+    /// * `pclk_manual` - Enable manual PCLK divider
+    /// * `pclk_div` - PCLK divider value (0-31)
+    /// * `bit_mode` - Data bit width (8 or 10)
+    pub fn set_pll(
+        &mut self,
+        xclk_mhz: Rate<u32, 1, 1>,
+        pll_bypass: bool,
+        pll_multiplier: u8,
+        pll_sys_div: u8,
+        pre_div: u8,
+        root_2x: bool,
+        pclk_root_div: u8,
+        pclk_manual: bool,
+        pclk_div: u8,
+        bit_mode: u8,
+    ) -> Result<(), I2C::Error> {
+        assert!(pll_multiplier >= 4 && pll_multiplier <= 252);
+        assert!(pll_sys_div <= 15);
+        assert!(pre_div <= 8);
+        assert!(pclk_div <= 31);
+        assert!(pclk_root_div <= 3);
+        assert!(bit_mode == 8 || bit_mode == 10);
+
+        // If multiplier > 127, must be even
+        let multiplier = if pll_multiplier > 127 {
+            pll_multiplier & 0xFE
+        } else {
+            pll_multiplier
+        };
+
+        // Generate register values
+        let regs = [
+            (0x3039, if pll_bypass { 0x80 } else { 0x00 }),
+            (0x3034, if bit_mode == 10 { 0x1A } else { 0x18 }),
+            (0x3035, 0x01 | ((pll_sys_div & 0x0F) << 4)),
+            (0x3036, multiplier),
+            (0x3037, (pre_div & 0x0F) | (if root_2x { 0x10 } else { 0x00 })),
+            (0x3108, ((pclk_root_div & 0x03) << 4) | 0x06),
+            (0x3824, pclk_div & 0x1F),
+            (0x460C, if pclk_manual { 0x22 } else { 0x20 }),
+            // Enable PLL
+            (0x3103, 0x11)
+        ];
+
+        #[cfg(debug_assertions)]
+        calc_and_print_clocks(
+            xclk_mhz, pll_bypass, pll_multiplier, pll_sys_div,
+            pre_div, root_2x, pclk_root_div, pclk_manual, pclk_div, bit_mode
+        );
+
+        self.write_regs(&regs)?;
+        Ok(())
+    }
     /// Read a complete frame from the camera
     /// This will hold the mutable reference to self until the frame is processed
     /// The returned reference looks into a static buffer, be aware that this maye cause Strange
@@ -421,6 +473,70 @@ where
         Ok(())
     }
 
+    /// Set PLL configuration and print resulting clocks
+    /// 
+    /// # Arguments
+    /// * `xclk_mhz` - Input clock frequency (typically 24MHz)
+    /// * `pll_bypass` - true to bypass PLL and use xclk directly
+    /// * `pll_multiplier` - PLL multiplier (4-252, must be even if >127)
+    /// * `pll_sys_div` - System clock divider (0-15, 0 means 1)
+    /// * `pre_div` - Pre-divider index (0-8, maps to [1, 1, 2, 3, 4, 1.5, 6, 2.5, 8])
+    /// * `root_2x` - Enable root 2x divider
+    /// * `pclk_root_div` - PCLK root divider (0-3, maps to [1, 2, 4, 8])
+    /// * `pclk_manual` - Enable manual PCLK divider
+    /// * `pclk_div` - PCLK divider value (0-31)
+    /// * `bit_mode` - Data bit width (8 or 10)
+    pub async fn set_pll_async(
+        &mut self,
+        xclk_mhz: Rate<u32, 1, 1>,
+        pll_bypass: bool,
+        pll_multiplier: u8,
+        pll_sys_div: u8,
+        pre_div: u8,
+        root_2x: bool,
+        pclk_root_div: u8,
+        pclk_manual: bool,
+        pclk_div: u8,
+        bit_mode: u8,
+    ) -> Result<(), I2C::Error> {
+        assert!(pll_multiplier >= 4 && pll_multiplier <= 252);
+        assert!(pll_sys_div <= 15);
+        assert!(pre_div <= 8);
+        assert!(pclk_div <= 31);
+        assert!(pclk_root_div <= 3);
+        assert!(bit_mode == 8 || bit_mode == 10);
+
+        // If multiplier > 127, must be even
+        let multiplier = if pll_multiplier > 127 {
+            pll_multiplier & 0xFE
+        } else {
+            pll_multiplier
+        };
+
+        // Generate register values
+        let regs = [
+            (0x3039, if pll_bypass { 0x80 } else { 0x00 }),
+            (0x3034, if bit_mode == 10 { 0x1A } else { 0x18 }),
+            (0x3035, 0x01 | ((pll_sys_div & 0x0F) << 4)),
+            (0x3036, multiplier),
+            (0x3037, (pre_div & 0x0F) | (if root_2x { 0x10 } else { 0x00 })),
+            (0x3108, ((pclk_root_div & 0x03) << 4) | 0x06),
+            (0x3824, pclk_div & 0x1F),
+            (0x460C, if pclk_manual { 0x22 } else { 0x20 }),
+            // Enable PLL
+            (0x3103, 0x11)
+        ];
+
+        #[cfg(debug_assertions)]
+        calc_and_print_clocks(
+            xclk_mhz, pll_bypass, pll_multiplier, pll_sys_div,
+            pre_div, root_2x, pclk_root_div, pclk_manual, pclk_div, bit_mode
+        );
+
+        self.write_regs_async(&regs).await?;
+        Ok(())
+    }
+
     /// Read a complete frame from the camera
     /// This will hold the mutable reference to self until the frame is processed
     /// The returned reference looks into a static buffer, be aware that this maye cause Strange
@@ -438,7 +554,8 @@ where
         
         while !xfer.complete() {}
         let framebuffer = xfer.recycle_source(other_buf).expect("Framebuffer mismatch");
-
+        
+        // Bytes in-order from PCC capture
         Ok(framebuffer)
     }
 
@@ -522,20 +639,62 @@ where
         Ok(u16::from_be_bytes(id))
     }
 }
-pub struct FilterRegions {
-    pub filter_1: (usize, usize, usize, usize), // (x, y, width, height)
-    pub filter_2: (usize, usize, usize, usize),
-    pub filter_3: (usize, usize, usize, usize),
-    pub filter_4: (usize, usize, usize, usize),
+
+/// Calculate OV5640 clock tree based on register settings.
+/// Matches the esp32-camera calc_sysclk function.
+pub fn calc_and_print_clocks(
+    xclk: Rate<u32, 1, 1>,
+    pll_bypass: bool,
+    pll_multiplier: u8,
+    pll_sys_div: u8,
+    pre_div: u8,
+    root_2x: bool,
+    pclk_root_div: u8,
+    pclk_manual: bool,
+    pclk_div: u8,
+    bit_mode: u8,
+) {
+    const PLL_PRE_DIV2X_MAP: [f32; 9] = [1.0, 1.0, 2.0, 3.0, 4.0, 1.5, 6.0, 2.5, 8.0];
+    const PLL_PCLK_ROOT_DIV_MAP: [u32; 4] = [1, 2, 4, 8];
+
+    let pll_sys_div = if pll_sys_div == 0 { 1 } else { pll_sys_div };
+
+    let pll_pre_div_val = PLL_PRE_DIV2X_MAP[pre_div as usize];
+    let root_2x_div = if root_2x { 2 } else { 1 };
+    let pll_pclk_root_div_val = PLL_PCLK_ROOT_DIV_MAP[pclk_root_div as usize];
+
+    // Clock calculations
+    let refin = xclk * 2 / ((pll_pre_div_val * 2.0) as u32);
+    let vco = refin * pll_multiplier as u32 / root_2x_div;
+
+    // bit_mode affects the final divisor: 10-bit mode = /5, 8-bit mode = /4
+    let bit_divisor = if bit_mode == 10 { 5 } else { 4 };
+
+    let pll_clk = if pll_bypass {
+        xclk
+    } else {
+        vco / pll_sys_div as u32 * 2 / bit_divisor
+    };
+
+    let pclk_divisor = if pclk_manual && pclk_div != 0 {
+        pclk_div as u32
+    } else {
+        2
+    };
+    let pclk = pll_clk / pll_pclk_root_div_val / pclk_divisor;
+    let sysclk = pll_clk / 4;
+
+    defmt::println!("OV5640 Clock Configuration:");
+    defmt::println!("  XVCLK:   {}  (input)", xclk);
+    defmt::println!("  REFIN:   {}  (XVCLK / pre_div)", refin);
+    defmt::println!("  VCO:     {}  (REFIN * multiplier / root_2x_div)", vco);
+    defmt::println!("  PLL_CLK: {}  (VCO / sys_div * 2 / {})", pll_clk, bit_divisor);
+    defmt::println!("  SYSCLK:  {}  (PLL_CLK / 4)", sysclk);
+    defmt::println!("  PCLK:    {}  (PLL_CLK / pclk_root_div / pclk_div)", pclk);
+    defmt::println!("  SYSCLK/PCLK ratio: {}:1", sysclk / pclk);
 }
 
-impl Default for FilterRegions {
-    fn default() -> Self {
-        Self {
-            filter_1: (0, 0, H_RES / 2, V_RES / 2), // Top-left quadrant
-            filter_2: (H_RES / 2, 0, H_RES / 2, V_RES / 2), // Top-right quadrant
-            filter_3: (0, V_RES / 2, H_RES / 2, V_RES / 2), // Bottom-left quadrant
-            filter_4: (H_RES / 2, V_RES / 2, H_RES / 2, V_RES / 2), // Bottom-right quadrant
-        }
-    }
-}
+
+
+
+
