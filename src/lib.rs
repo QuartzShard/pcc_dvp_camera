@@ -542,17 +542,14 @@ where
     /// The returned reference looks into a static buffer, be aware that this maye cause Strange
     /// Issues.
     pub async fn read_frame_async(&mut self) -> Result<&'static mut FrameBuf, I2C::Error> {
-        let xfer = self.pcc_xfer_handle.as_mut().unwrap();
-
-        // log::info!("Waiting for VSync");
-        while self.cam_sync.den1.is_high() {};
-
+        let xfer = self.pcc_xfer_handle.as_mut().expect("DMA handle has gone missing!");
         let other_buf = self
             .other_buffer
             .take()
             .expect("Framebuffer was not returned");
-        
         while !xfer.complete() {}
+        // log::info!("Waiting for VSync");
+        while self.cam_sync.den1.is_high() {};
         let framebuffer = xfer.recycle_source(other_buf).expect("Framebuffer mismatch");
         
         // Bytes in-order from PCC capture
