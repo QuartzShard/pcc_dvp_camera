@@ -121,7 +121,7 @@ where
         let framebuffer = unsafe { &mut FRAMEBUFFER };
         let cam_sync = pcc.take_sync_pins().expect("Sync pins have gone missing!");
         pcc.configure(|pcc| {
-            pcc.mr().write(|w| {
+            pcc.mr().modify(|_, w| {
                 // Configure Clear If Disabled on VSYNC falling edge
                 unsafe { w.cid().bits(1) }
             });
