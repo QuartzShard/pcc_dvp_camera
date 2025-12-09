@@ -3,7 +3,7 @@
 // Image dimensions
 pub const H_RES: usize = 160;
 pub const V_RES: usize = 128;
-pub const IMAGE_SCALE: usize = 8;
+pub const IMAGE_SCALE: usize = 1;
 
 #[cfg(feature = "ov5640")]
 pub mod ov5640;
