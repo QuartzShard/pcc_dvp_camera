@@ -40,54 +40,20 @@ impl State for Disabled {}
 impl seal::Sealed for Disabled {}
 
 #[allow(private_bounds)]
-pub struct Camera<C: dmac::AnyChannel, I2C, D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>, S: State> {
-    pcc_xfer_handle: Option<Transfer<C, BufferPair<Pcc<PccMode>, &'static mut FrameBuf>>>,
+pub struct Camera<'framebuf, C: dmac::AnyChannel, I2C, D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>, S: State> {
+    pcc_xfer_handle: Option<Transfer<C, BufferPair<Pcc<PccMode>, &'framebuf mut FrameBuf>>>,
     i2c: I2C,
     cam_rst: Pin<PA15, PushPullOutput>,
     cam_sync: pcc::SyncPins,
     cam_clk: GclkOut<PB15>,
-    pub other_buffer: Option<&'static mut FrameBuf>,
+    fb2: &'framebuf mut FrameBuf,
     delay: D,
     _en: PhantomData<S>,
 }
 
-#[derive(Debug, Default, Clone, Copy, defmt::Format)]
-#[repr(C)]
-pub struct Pixel {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-}
-
-impl Pixel {
-    pub fn as_rgb888_bytes(&self) -> [&u8; 3] {
-        [&self.r, &self.g, &self.b]
-    }
-}
-
-pub type Frame = [[Pixel; H_RES]; V_RES];
-// 565
 pub type FrameBuf = [u8; H_RES * V_RES * 2];
-// 888
-//pub type FrameBuf = [u8; H_RES * V_RES * 3];
 
-pub fn flatten_frame_bytes_iter(frame: &Frame) -> impl Iterator<Item = &u8> {
-    frame.into_iter().flatten().flat_map(Pixel::as_rgb888_bytes)
-}
-
-pub fn flatten_frame_bytes_magic(frame: &Frame) -> &[u8; 3 * H_RES * V_RES] {
-    // A Frame is just [[[u8; 3]; H_RES]; V_RES] in memory, and arrays are flat in in memory
-    unsafe { core::mem::transmute(frame) }
-}
-
-// 565
-static mut FRAMEBUFFER: FrameBuf = [0; H_RES * V_RES * 2];
-static mut FRAMEBUFFER_2: FrameBuf = [0; H_RES * V_RES * 2];
-// 888
-//static mut FRAMEBUFFER: FrameBuf = [0; H_RES * V_RES * 3];
-//static mut FRAMEBUFFER_2: FrameBuf = [0; H_RES * V_RES * 3];
-
-unsafe impl<Id, I2C, D, S> Send for Camera<Channel<Id, dmac::Busy>, I2C, D, S> 
+unsafe impl<'framebuf, Id, I2C, D, S> Send for Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, S> 
 where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
@@ -95,7 +61,7 @@ where
 {}
 
 
-impl<Id, I2C, D> Camera<Channel<Id, dmac::Busy>, I2C, D, Disabled>
+impl<'framebuf, Id, I2C, D> Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled>
 where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
@@ -107,11 +73,11 @@ where
         mut pa15: Pin<PA15, PushPullOutput>,
         pb19: GclkOut<PB15>,
         delay: D,
+        fb1: &'framebuf mut FrameBuf,
+        fb2: &'framebuf mut FrameBuf
     ) -> Self {
         pa15.set_low().ok();
 
-        #[allow(static_mut_refs)]
-        let framebuffer = unsafe { &mut FRAMEBUFFER };
         let cam_sync = pcc.take_sync_pins().expect("Sync pins have gone missing!");
         pcc.configure(|pcc| {
             pcc.mr().modify(|_, w| {
@@ -119,42 +85,41 @@ where
                 unsafe { w.cid().bits(1) }
             });
         });
-        let pcc_xfer_handle = Some(
-            Transfer::new(channel, pcc, framebuffer, false)
-                .expect("DMA Transfer INIT FAIL")
+        
+        let pcc_xfer_handle = unsafe {Some(
+            Transfer::new_unchecked(channel, pcc, fb1, false)
                 .begin(TriggerSource::PccRx, dmac::TriggerAction::Burst),
-        );
-
-        #[allow(static_mut_refs)]
-        let other_buffer = unsafe { Some(&mut FRAMEBUFFER_2) };
+        )};
+        
         Self {
             pcc_xfer_handle,
             i2c,
             cam_rst: pa15,
             cam_sync,
             cam_clk: pb19,
-            other_buffer,
+            fb2,
             delay,
             _en: PhantomData
         }
+
     }
 }
 
-impl<Id, I2C, D> Camera<Channel<Id, dmac::Busy>, I2C, D, Disabled>
+impl<'framebuf, Id, I2C, D> Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled>
 where
     Id: dmac::ChId,
     I2C: embedded_hal_async::i2c::I2c,
     <I2C as embedded_hal_async::i2c::ErrorType>::Error: Format,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-    pub async fn init(self, init_regs: &[(u16, u8)]) -> Result<Camera<Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
+    pub async fn init(self, init_regs: &[(u16, u8)]) -> Result<Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
         let mut cam = Camera {
             pcc_xfer_handle: self.pcc_xfer_handle,
             i2c: self.i2c,
             cam_rst: self.cam_rst,
             cam_sync: self.cam_sync,
             cam_clk: self.cam_clk,
-            other_buffer: self.other_buffer,
+            fb2: self.fb2,
             delay: self.delay,
             _en: PhantomData,
         };
@@ -177,7 +142,7 @@ where
     }
 }
 
-impl<Id, I2C, D> Camera<Channel<Id, dmac::Busy>, I2C, D, Enabled>
+impl<'framebuffer, Id, I2C, D> Camera<'framebuffer, Channel<Id, dmac::Busy>, I2C, D, Enabled>
 where
     Id: dmac::ChId,
     I2C: embedded_hal_async::i2c::I2c,
@@ -279,20 +244,15 @@ where
     /// This will hold the mutable reference to self until the frame is processed
     /// The returned reference looks into a static buffer, be aware that this maye cause Strange
     /// Issues.
-    pub async fn read_frame(&mut self) -> Result<&'static mut FrameBuf, I2C::Error> {
+    pub async fn read_frame(&'framebuffer mut self) -> Result<&'framebuffer mut FrameBuf, I2C::Error> {
         let xfer = self.pcc_xfer_handle.as_mut().expect("DMA handle has gone missing!");
-        let other_buf = self
-            .other_buffer
-            .take()
-            .expect("Framebuffer was not returned");
         log_debug!("Wait for DMA: ");
         while !xfer.complete() {}
         log_debug!("Wait for VSync: ");
         while self.cam_sync.den1.is_high() {};
-        let framebuffer = xfer.recycle_source(other_buf).expect("Framebuffer mismatch");
-        
+        self.fb2 = xfer.recycle_source(self.fb2).expect("Framebuffer mismatch");
         // Bytes in-order from PCC capture
-        Ok(framebuffer)
+        Ok(self.fb2)
     }
 
     /// Configure windowing
