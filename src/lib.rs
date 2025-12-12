@@ -13,10 +13,11 @@ use atsamd_hal::{
     fugit::{self, ExtU64 as _, Rate},
     gpio::{PA15, PB15, Pin, PushPullOutput},
 };
-use defmt::{self as log, Format};
+use defmt::{Format};
 use embedded_hal::{digital::OutputPin};
 
 pub mod sensors;
+mod macros;
 
 use rtic_time::Monotonic;
 use sensors::sensor::*;
@@ -170,7 +171,7 @@ where
 
         cam.write_reg(0x3008, 0x02).await?; // Exit software power down
         let id = cam.get_sensor_id().await?;
-        log::debug!("Sensor ID: {:#X}", id);
+        log_debug!("Sensor ID: {:#X}", id);
         assert_eq!(id, 0x5640);
         Ok(cam)
     }
@@ -184,7 +185,7 @@ where
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
     pub async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
-        log::info!("Writing {:#X} to {:#X}", val, reg);
+        log_debug!("Writing {:#X} to {:#X}", val, reg);
         self.i2c
             .write(CAM_ADDR, &[(reg >> 8) as u8, reg as u8, val])
             .await?;
@@ -203,7 +204,7 @@ where
     }
 
     pub async fn read_reg(&mut self, reg: u16, buf: &mut [u8]) -> Result<(), I2C::Error> {
-        log::info!("Reading from {:#X}", reg);
+        log_debug!("Reading from {:#X}", reg);
         self.i2c
             .write_read(CAM_ADDR, &[(reg >> 8) as u8, reg as u8], buf)
             .await?;
@@ -284,8 +285,9 @@ where
             .other_buffer
             .take()
             .expect("Framebuffer was not returned");
+        log_debug!("Wait for DMA: ");
         while !xfer.complete() {}
-        // log::info!("Waiting for VSync");
+        log_debug!("Wait for VSync: ");
         while self.cam_sync.den1.is_high() {};
         let framebuffer = xfer.recycle_source(other_buf).expect("Framebuffer mismatch");
         

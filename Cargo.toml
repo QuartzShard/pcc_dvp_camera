@@ -15,6 +15,7 @@ rtic-time = "2.0.1"
 
 [features]
 default = ["ov5640", "samd51j"]
+debug_log = []
 adafruit-branch = ["atsamd-hal-git", "atsamd51-pcc/adafruit-branch"]
 ov5640 = []
 samd51g = ["atsamd51-pcc/samd51g", "atsamd-hal/samd51g", "atsamd-hal"]
