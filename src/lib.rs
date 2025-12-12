@@ -244,14 +244,15 @@ where
     /// This will hold the mutable reference to self until the frame is processed
     /// The returned reference looks into a static buffer, be aware that this maye cause Strange
     /// Issues.
-    pub async fn read_frame(&'framebuffer mut self) -> Result<&'framebuffer mut FrameBuf, I2C::Error> {
+    pub async fn read_frame<'fb>(&'framebuffer mut self) -> Result<&'fb mut FrameBuf, I2C::Error> 
+    where 'framebuffer: 'fb
+    {
         let xfer = self.pcc_xfer_handle.as_mut().expect("DMA handle has gone missing!");
         log_debug!("Wait for DMA: ");
         while !xfer.complete() {}
         log_debug!("Wait for VSync: ");
         while self.cam_sync.den1.is_high() {};
         self.fb2 = xfer.recycle_source(self.fb2).expect("Framebuffer mismatch");
-        // Bytes in-order from PCC capture
         Ok(self.fb2)
     }
 
