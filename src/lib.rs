@@ -9,19 +9,21 @@ use atsamd_hal_git as atsamd_hal;
 
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
-    dmac::{self, BufferPair, Channel, Transfer, TriggerSource},
+    dmac::{self, Busy, Channel},
     fugit::{self, ExtU64 as _, Rate},
     gpio::{PA15, PB15, Pin, PushPullOutput},
 };
-use defmt::{Format};
-use embedded_hal::{digital::OutputPin};
+use defmt::Format;
+use embedded_hal::digital::OutputPin;
 
-pub mod sensors;
 mod macros;
+mod safe_dma;
+pub mod sensors;
 
 use rtic_time::Monotonic;
 use sensors::sensor::*;
 
+use crate::safe_dma::SafeTransfer;
 use crate::sensors::{H_RES, V_RES};
 
 type PccMode = pcc::EightBit1data;
@@ -40,26 +42,32 @@ impl State for Disabled {}
 impl seal::Sealed for Disabled {}
 
 #[allow(private_bounds)]
-pub struct Camera<'framebuf, C: dmac::AnyChannel, I2C, D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>, S: State> {
-    pcc_xfer_handle: Option<Transfer<C, BufferPair<Pcc<PccMode>, &'framebuf mut FrameBuf>>>,
+pub struct Camera<
+    'framebuf,
+    C: dmac::AnyChannel<Status = Busy>,
+    I2C,
+    D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
+    S: State,
+> {
+    pcc_xfer_handle: SafeTransfer<C::Id, Pcc<PccMode>, &'framebuf mut FrameBuf>,
     i2c: I2C,
     cam_rst: Pin<PA15, PushPullOutput>,
     cam_sync: pcc::SyncPins,
     cam_clk: GclkOut<PB15>,
-    fb2: &'framebuf mut FrameBuf,
+    fb2: Option<&'framebuf mut FrameBuf>,
     delay: D,
     _en: PhantomData<S>,
 }
 
 pub type FrameBuf = [u8; H_RES * V_RES * 2];
 
-unsafe impl<'framebuf, Id, I2C, D, S> Send for Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, S> 
+unsafe impl<'framebuf, Id, I2C, D, S> Send for Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, S>
 where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
-    S: State
-{}
-
+    S: State,
+{
+}
 
 impl<'framebuf, Id, I2C, D> Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled>
 where
@@ -74,7 +82,7 @@ where
         pb19: GclkOut<PB15>,
         delay: D,
         fb1: &'framebuf mut FrameBuf,
-        fb2: &'framebuf mut FrameBuf
+        fb2: &'framebuf mut FrameBuf,
     ) -> Self {
         pa15.set_low().ok();
 
@@ -85,23 +93,19 @@ where
                 unsafe { w.cid().bits(1) }
             });
         });
-        
-        let pcc_xfer_handle = unsafe {Some(
-            Transfer::new_unchecked(channel, pcc, fb1, false)
-                .begin(TriggerSource::PccRx, dmac::TriggerAction::Burst),
-        )};
-        
+
+        let pcc_xfer_handle = SafeTransfer::new(channel, pcc, fb1);
+
         Self {
             pcc_xfer_handle,
             i2c,
             cam_rst: pa15,
             cam_sync,
             cam_clk: pb19,
-            fb2,
+            fb2: Some(fb2),
             delay,
-            _en: PhantomData
+            _en: PhantomData,
         }
-
     }
 }
 
@@ -112,7 +116,10 @@ where
     <I2C as embedded_hal_async::i2c::ErrorType>::Error: Format,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-    pub async fn init(self, init_regs: &[(u16, u8)]) -> Result<Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
+    pub async fn init(
+        self,
+        init_regs: &[(u16, u8)],
+    ) -> Result<Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
         let mut cam = Camera {
             pcc_xfer_handle: self.pcc_xfer_handle,
             i2c: self.i2c,
@@ -177,7 +184,7 @@ where
     }
 
     /// Set PLL configuration and print resulting clocks
-    /// 
+    ///
     /// # Arguments
     /// * `xclk_mhz` - Input clock frequency (typically 24MHz)
     /// * `pll_bypass` - true to bypass PLL and use xclk directly
@@ -222,18 +229,29 @@ where
             (0x3034, if bit_mode == 10 { 0x1A } else { 0x18 }),
             (0x3035, 0x01 | ((pll_sys_div & 0x0F) << 4)),
             (0x3036, multiplier),
-            (0x3037, (pre_div & 0x0F) | (if root_2x { 0x10 } else { 0x00 })),
+            (
+                0x3037,
+                (pre_div & 0x0F) | (if root_2x { 0x10 } else { 0x00 }),
+            ),
             (0x3108, ((pclk_root_div & 0x03) << 4) | 0x06),
             (0x3824, pclk_div & 0x1F),
             (0x460C, if pclk_manual { 0x22 } else { 0x20 }),
             // Enable PLL
-            (0x3103, 0x11)
+            (0x3103, 0x11),
         ];
 
         #[cfg(debug_assertions)]
         calc_and_print_clocks(
-            xclk_mhz, pll_bypass, pll_multiplier, pll_sys_div,
-            pre_div, root_2x, pclk_root_div, pclk_manual, pclk_div, bit_mode
+            xclk_mhz,
+            pll_bypass,
+            pll_multiplier,
+            pll_sys_div,
+            pre_div,
+            root_2x,
+            pclk_root_div,
+            pclk_manual,
+            pclk_div,
+            bit_mode,
         );
 
         self.write_regs(&regs).await?;
@@ -241,19 +259,25 @@ where
     }
 
     /// Read a complete frame from the camera
-    /// This will hold the mutable reference to self until the frame is processed
-    /// The returned reference looks into a static buffer, be aware that this maye cause Strange
-    /// Issues.
-    pub async fn read_frame<'fb>(&'framebuffer mut self) -> Result<&'fb mut FrameBuf, I2C::Error> 
-    where 'framebuffer: 'fb
-    {
-        let xfer = self.pcc_xfer_handle.as_mut().expect("DMA handle has gone missing!");
+    pub async fn read_frame(&mut self) -> Option<&mut FrameBuf> {
         log_debug!("Wait for DMA: ");
-        while !xfer.complete() {}
+        while !self.pcc_xfer_handle.xfer().complete() {}
         log_debug!("Wait for VSync: ");
-        while self.cam_sync.den1.is_high() {};
-        self.fb2 = xfer.recycle_source(self.fb2).expect("Framebuffer mismatch");
-        Ok(self.fb2)
+        while self.cam_sync.den1.is_high() {}
+        let fb1 = match self
+            .pcc_xfer_handle
+            .xfer()
+            .recycle_source(self.fb2.take().expect("Framebuffer missing"))
+        {
+            Ok(fb) => fb,
+            Err(e) => match e {
+                dmac::Error::LengthMismatch => unreachable!("Buffers are the same type"),
+                dmac::Error::InvalidState => unreachable!("Transfer is complete"),
+                dmac::Error::TransferError => return None,
+            },
+        };
+        self.fb2.replace(fb1);
+        self.fb2.as_deref_mut()
     }
 
     /// Configure windowing
@@ -385,13 +409,12 @@ pub fn calc_and_print_clocks(
     defmt::println!("  XVCLK:   {}  (input)", xclk);
     defmt::println!("  REFIN:   {}  (XVCLK / pre_div)", refin);
     defmt::println!("  VCO:     {}  (REFIN * multiplier / root_2x_div)", vco);
-    defmt::println!("  PLL_CLK: {}  (VCO / sys_div * 2 / {})", pll_clk, bit_divisor);
+    defmt::println!(
+        "  PLL_CLK: {}  (VCO / sys_div * 2 / {})",
+        pll_clk,
+        bit_divisor
+    );
     defmt::println!("  SYSCLK:  {}  (PLL_CLK / 4)", sysclk);
     defmt::println!("  PCLK:    {}  (PLL_CLK / pclk_root_div / pclk_div)", pclk);
     defmt::println!("  SYSCLK/PCLK ratio: {}:1", sysclk / pclk);
 }
-
-
-
-
-
