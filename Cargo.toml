@@ -7,8 +7,7 @@ edition = "2024"
 embedded-hal = { version = "1.0.0", features = ["defmt-03"] }
 atsamd51-pcc = { git="https://github.com/QuartzShard/atsamd51-pcc", default-features = false, features = [] }
 defmt = "1.0.1"
-atsamd-hal = { version = "0.22.2", optional = true }
-atsamd-hal-git = { package = "atsamd-hal", git="https://github.com/QuartzShard/atsamd", branch="extra_i2c_pads", optional = true, features = ["samd51p", "samd51p-rt", "dma", "defmt"] }
+atsamd-hal = { version = "0.22.2", optional = true, features=["dma", "defmt", "async"] }
 embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
 fugit = { version = "0.3.9", features = ["defmt"] }
 rtic-time = "2.0.1"
@@ -16,7 +15,6 @@ rtic-time = "2.0.1"
 [features]
 default = ["ov5640", "samd51j"]
 debug_log = []
-adafruit-branch = ["atsamd-hal-git", "atsamd51-pcc/adafruit-branch"]
 ov5640 = []
 samd51g = ["atsamd51-pcc/samd51g", "atsamd-hal/samd51g", "atsamd-hal"]
 samd51j = ["atsamd51-pcc/samd51j", "atsamd-hal/samd51j", "atsamd-hal"]
