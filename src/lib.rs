@@ -94,6 +94,8 @@ where
             });
         });
 
+        log_debug!("Wait for VSync: ");
+        while cam_sync.den1.is_high() {}
         let pcc_xfer_handle = SafeTransfer::new(channel, pcc, fb1);
 
         Self {
