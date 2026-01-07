@@ -74,9 +74,9 @@ where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-    pub fn new(
+    pub fn new<R: dmac::ReadyChannel>(
         mut pcc: Pcc<PccMode>,
-        channel: Channel<Id, dmac::Ready>,
+        channel: Channel<Id, R>,
         i2c: I2C,
         mut pa15: Pin<PA15, PushPullOutput>,
         pb19: GclkOut<PB15>,
@@ -259,7 +259,7 @@ where
     }
 
     /// Read a complete frame from the camera
-    pub async fn read_frame(&mut self) -> Option<&mut FrameBuf> {
+    pub fn read_frame(&mut self) -> Option<&mut FrameBuf> {
         log_debug!("Wait for DMA: ");
         while !self.pcc_xfer_handle.xfer().complete() {}
         log_debug!("Wait for VSync: ");
