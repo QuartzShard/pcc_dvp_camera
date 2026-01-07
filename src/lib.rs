@@ -94,12 +94,6 @@ where
             });
         });
 
-        log_debug!("Wait for VSync: ");
-        while cam_sync.den1.is_high() {}
-        pcc.configure(|pcc| {
-            log_debug!("{}", pcc.rhr().read().bits());
-            ()
-        });
         let pcc_xfer_handle = SafeTransfer::new(channel, pcc, fb1);
 
         Self {
@@ -151,6 +145,10 @@ where
         let id = cam.get_sensor_id().await?;
         log_debug!("Sensor ID: {:#X}", id);
         assert_eq!(id, 0x5640);
+
+        log_debug!("Wait for VSync: ");
+        while cam.cam_sync.den1.is_high() {}
+        cam.pcc_xfer_handle.restart();
         Ok(cam)
     }
 }
