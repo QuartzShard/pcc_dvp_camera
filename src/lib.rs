@@ -4,6 +4,9 @@ use core::marker::PhantomData;
 
 use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _};
 
+#[cfg(feature = "adafruit-branch")]
+use atsamd_hal_git as atsamd_hal;
+
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
     dmac::{self, Busy, Channel},
@@ -66,16 +69,14 @@ where
 {
 }
 
-
-
 impl<'framebuf, Id, I2C, D> Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled>
 where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-    pub fn new<R: dmac::ReadyChannel> (
+    pub fn new(
         mut pcc: Pcc<PccMode>,
-        channel: Channel<Id, R>,
+        channel: Channel<Id, dmac::Ready>,
         i2c: I2C,
         mut pa15: Pin<PA15, PushPullOutput>,
         pb19: GclkOut<PB15>,
@@ -257,16 +258,24 @@ where
         Ok(())
     }
 
-    /// Get the latest frame from the camera. Blocks until VSYNC to prevent tearing
-    pub fn read_frame(&mut self) -> Option<&mut FrameBuf> {
+    /// Read a complete frame from the camera
+    pub async fn read_frame(&mut self) -> Option<&mut FrameBuf> {
+        log_debug!("Wait for DMA: ");
+        while !self.pcc_xfer_handle.xfer().complete() {}
         log_debug!("Wait for VSync: ");
-        // PERF: Async this?
         while self.cam_sync.den1.is_high() {}
-
-        let fb1 = self
+        let fb1 = match self
             .pcc_xfer_handle
-            .swap(self.fb2.take().expect("Framebuffer missing"));
-
+            .xfer()
+            .recycle_source(self.fb2.take().expect("Framebuffer missing"))
+        {
+            Ok(fb) => fb,
+            Err(e) => match e {
+                dmac::Error::LengthMismatch => unreachable!("Buffers are the same type"),
+                dmac::Error::InvalidState => unreachable!("Transfer is complete"),
+                dmac::Error::TransferError => return None,
+            },
+        };
         self.fb2.replace(fb1);
         self.fb2.as_deref_mut()
     }
