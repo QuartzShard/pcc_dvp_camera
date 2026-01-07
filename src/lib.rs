@@ -96,6 +96,10 @@ where
 
         log_debug!("Wait for VSync: ");
         while cam_sync.den1.is_high() {}
+        pcc.configure(|pcc| {
+            log_debug!("{}", pcc.rhr().read().bits());
+            ()
+        });
         let pcc_xfer_handle = SafeTransfer::new(channel, pcc, fb1);
 
         Self {
