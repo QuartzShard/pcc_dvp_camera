@@ -29,7 +29,7 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
             // SAFETY: This is valid as the only difference is PhantomData, so long as we don't
             // break contract by enabling the TCMPL interrupt
             let channel: Channel<C, Ready> = core::mem::transmute(channel);
-            Transfer::new_unchecked(channel, source, dest, false)
+            Transfer::new_unchecked(channel, source, dest, true)
                 .begin(TriggerSource::PccRx, TriggerAction::Burst)
         };
 
@@ -42,13 +42,23 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
         &mut self.inner
     }
 
+    pub fn swap(&mut self, buf1: D) -> D {
+        let xfer = unsafe { ManuallyDrop::take(&mut self.inner) };
+        let (ch, pcc, buf2) = xfer.stop();
+        self.inner = ManuallyDrop::new(unsafe {
+            Transfer::new_unchecked(ch, pcc, buf1, true)
+                .begin(TriggerSource::PccRx, TriggerAction::Burst)
+        });
+        buf2
+    }
+
     pub fn restart(&mut self) {
         // SAFETY: Nothing here can panic, and it's back in place before return
         let xfer = unsafe { ManuallyDrop::take(&mut self.inner) };
         let (ch, pcc, fb) = xfer.stop();
         let ch = ch.reset().init(PriorityLevel::Lvl3);
         self.inner = ManuallyDrop::new(unsafe {
-            Transfer::new_unchecked(ch, pcc, fb, false)
+            Transfer::new_unchecked(ch, pcc, fb, true)
                 .begin(TriggerSource::PccRx, TriggerAction::Burst)
         });
     }

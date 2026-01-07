@@ -264,22 +264,11 @@ where
 
     /// Read a complete frame from the camera
     pub fn read_frame(&mut self) -> Option<&mut FrameBuf> {
-        log_debug!("Wait for DMA: ");
-        while !self.pcc_xfer_handle.xfer().complete() {}
         log_debug!("Wait for VSync: ");
         while self.cam_sync.den1.is_high() {}
-        let fb1 = match self
+        let fb1 = self
             .pcc_xfer_handle
-            .xfer()
-            .recycle_source(self.fb2.take().expect("Framebuffer missing"))
-        {
-            Ok(fb) => fb,
-            Err(e) => match e {
-                dmac::Error::LengthMismatch => unreachable!("Buffers are the same type"),
-                dmac::Error::InvalidState => unreachable!("Transfer is complete"),
-                dmac::Error::TransferError => return None,
-            },
-        };
+            .swap(self.fb2.take().expect("Framebuffer missing"));
         self.fb2.replace(fb1);
         self.fb2.as_deref_mut()
     }
