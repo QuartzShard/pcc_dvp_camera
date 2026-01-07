@@ -1,8 +1,7 @@
 use core::mem::ManuallyDrop;
 
 use atsamd_hal::dmac::{
-    Buffer, BufferPair, Busy, ChId, Channel, Ready, ReadyChannel, Transfer, TriggerAction,
-    TriggerSource,
+    Buffer, BufferPair, Busy, ChId, Channel, PriorityLevel, Ready, ReadyChannel, Transfer, TriggerAction, TriggerSource
 };
 
 type BusyChannel<Id> = Channel<Id, Busy>;
@@ -47,6 +46,7 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
         // SAFETY: Nothing here can panic, and it's back in place before return
         let xfer = unsafe { ManuallyDrop::take(&mut self.inner) };
         let (ch, pcc, fb) = xfer.stop();
+        let ch = ch.reset().init(PriorityLevel::Lvl3);
         self.inner = ManuallyDrop::new(unsafe {
             Transfer::new_unchecked(ch, pcc, fb, false)
                 .begin(TriggerSource::PccRx, TriggerAction::Burst)
