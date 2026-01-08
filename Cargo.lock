@@ -21,11 +21,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0943a1a3f7f84d98565abd66e7a451cd189f2e6c7e925a4cd0f3d42b2e0021d8"
 dependencies = [
  "aes",
- "atsamd-hal-macros 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "atsamd-hal-macros",
  "atsamd51g",
  "atsamd51j",
  "atsamd51n",
- "atsamd51p 0.14.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "atsamd51p",
  "atsame51g",
  "atsame51j",
  "atsame51n",
@@ -34,49 +34,23 @@ dependencies = [
  "cipher",
  "cortex-m",
  "critical-section",
- "embedded-hal 0.2.7",
- "embedded-hal 1.0.0",
- "embedded-hal-nb",
- "embedded-io",
- "fugit",
- "heapless",
- "modular-bitfield",
- "nb 1.1.0",
- "num-traits",
- "opaque-debug",
- "paste",
- "rand_core 0.9.3",
- "seq-macro",
- "sorted-hlist",
- "typenum",
- "void",
-]
-
-[[package]]
-name = "atsamd-hal"
-version = "0.22.2"
-source = "git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads#c2a6ecb19cb60491559ce0febd3a3d08d3fb87eb"
-dependencies = [
- "aes",
- "atsamd-hal-macros 0.3.0 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
- "atsamd51p 0.14.2 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
- "bitfield",
- "bitflags 2.10.0",
- "cipher",
- "cortex-m",
- "critical-section",
  "defmt 1.0.1",
+ "embassy-sync",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
+ "embedded-hal-async",
  "embedded-hal-nb",
  "embedded-io",
+ "embedded-io-async",
  "fugit",
+ "futures",
  "heapless",
  "modular-bitfield",
  "nb 1.1.0",
  "num-traits",
  "opaque-debug",
  "paste",
+ "portable-atomic",
  "rand_core 0.9.3",
  "seq-macro",
  "sorted-hlist",
@@ -98,24 +72,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "atsamd-hal-macros"
-version = "0.3.0"
-source = "git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads#c2a6ecb19cb60491559ce0febd3a3d08d3fb87eb"
-dependencies = [
- "litrs",
- "phf",
- "phf_codegen",
- "serde",
- "serde_yaml",
-]
-
-[[package]]
 name = "atsamd51-pcc"
 version = "0.1.0"
 source = "git+https://github.com/QuartzShard/atsamd51-pcc#83c662ec13766c5eff3f452d4f5cda23e80fb2e1"
 dependencies = [
- "atsamd-hal 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "atsamd-hal 0.22.2 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
+ "atsamd-hal",
  "mutually_exclusive_features",
 ]
 
@@ -159,17 +120,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12556e5e96dc6527acc472b8432cee241274a2278732b1068984df7a678984d3"
 dependencies = [
  "cortex-m",
- "critical-section",
- "vcell",
-]
-
-[[package]]
-name = "atsamd51p"
-version = "0.14.2"
-source = "git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads#c2a6ecb19cb60491559ce0febd3a3d08d3fb87eb"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
  "critical-section",
  "vcell",
 ]
@@ -274,26 +224,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cortex-m-rt"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "801d4dec46b34c299ccf6b036717ae0fce602faa4f4fe816d9013b9a7c9f5ba6"
-dependencies = [
- "cortex-m-rt-macros",
-]
-
-[[package]]
-name = "cortex-m-rt-macros"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e37549a379a9e0e6e576fd208ee60394ccb8be963889eebba3ffe0980364f472"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.111",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -350,6 +280,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "embassy-sync"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d2c8cdff05a7a51ba0087489ea44b0b1d97a296ca6b1d6d1a33ea7423d34049"
+dependencies = [
+ "cfg-if",
+ "critical-section",
+ "embedded-io-async",
+ "futures-sink",
+ "futures-util",
+ "heapless",
+]
+
+[[package]]
 name = "embedded-hal"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -395,6 +339,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
 
 [[package]]
+name = "embedded-io-async"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ff09972d4073aa8c299395be75161d582e7629cd663171d62af73c8d50dba3f"
+dependencies = [
+ "embedded-io",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -411,10 +364,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-channel"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dff15bf788c671c1934e366d07e30c1814a8ef514e1af724a602e8a2fbe1b10"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+]
+
+[[package]]
 name = "futures-core"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
+
+[[package]]
+name = "futures-io"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e5c1b78ca4aae1ac06c48a526a655760685149f0d465d21f37abfe57ce075c6"
+
+[[package]]
+name = "futures-macro"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
+]
+
+[[package]]
+name = "futures-sink"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e575fab7d1e0dcb8d0c7bcf9a63ee213816ab51902e6d244a95819acacf1d4f7"
 
 [[package]]
 name = "futures-task"
@@ -429,6 +429,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
  "futures-core",
+ "futures-macro",
+ "futures-sink",
  "futures-task",
  "pin-project-lite",
  "pin-utils",
@@ -573,8 +575,7 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 name = "pcc_dvp_camera"
 version = "0.1.0"
 dependencies = [
- "atsamd-hal 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "atsamd-hal 0.22.2 (git+https://github.com/QuartzShard/atsamd?branch=extra_i2c_pads)",
+ "atsamd-hal",
  "atsamd51-pcc",
  "defmt 1.0.1",
  "embedded-hal 1.0.0",
@@ -638,6 +639,9 @@ name = "portable-atomic"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
+dependencies = [
+ "critical-section",
+]
 
 [[package]]
 name = "proc-macro-error-attr2"

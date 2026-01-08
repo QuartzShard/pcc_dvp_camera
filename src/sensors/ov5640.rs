@@ -1,13 +1,13 @@
 //! Constants and configuration for the OV5640
-const SENSOR_H: usize = 2608;
-const SENSOR_V: usize = 1952;
-const H_OFFSET: usize = 16;
-const V_OFFSET: usize = 4;
+pub const SENSOR_H: usize = 2608;
+pub const SENSOR_V: usize = 1952;
+pub const H_OFFSET: usize = 16;
+pub const V_OFFSET: usize = 4;
 
-const X_START: u16 = (SENSOR_H - (super::H_RES * super::IMAGE_SCALE + 2 * H_OFFSET)) as u16 / 2;
-const X_END: u16 = SENSOR_H as u16 - X_START;
-const Y_START: u16 = (SENSOR_V - (super::V_RES * super::IMAGE_SCALE + 2 * V_OFFSET)) as u16 / 2;
-const Y_END: u16 = SENSOR_V as u16 - Y_START;
+pub const X_START: u16 = (SENSOR_H - (super::H_RES * super::IMAGE_SCALE + 2 * H_OFFSET)) as u16 / 2;
+pub const X_END: u16 = SENSOR_H as u16 - X_START;
+pub const Y_START: u16 = (SENSOR_V - (super::V_RES * super::IMAGE_SCALE + 2 * V_OFFSET)) as u16 / 2;
+pub const Y_END: u16 = SENSOR_V as u16 - Y_START;
 const _: () = assert!(
     (super::H_RES * super::IMAGE_SCALE) as u16 == X_END - X_START - 2 * H_OFFSET as u16,
     "Configured window is not the correct width"

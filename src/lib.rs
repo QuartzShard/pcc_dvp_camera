@@ -4,12 +4,9 @@ use core::marker::PhantomData;
 
 use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _};
 
-#[cfg(feature = "adafruit-branch")]
-use atsamd_hal_git as atsamd_hal;
-
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
-    dmac::{self, Busy, Channel},
+    dmac::{self, Busy, Channel, PriorityLevel},
     fugit::{self, ExtU64 as _, Rate},
     gpio::{PA15, PB15, Pin, PushPullOutput},
 };
@@ -54,7 +51,7 @@ pub struct Camera<
     cam_rst: Pin<PA15, PushPullOutput>,
     cam_sync: pcc::SyncPins,
     cam_clk: GclkOut<PB15>,
-    fb2: Option<&'framebuf mut FrameBuf>,
+    inactive_buf: Option<&'framebuf mut FrameBuf>,
     delay: D,
     _en: PhantomData<S>,
 }
@@ -74,7 +71,7 @@ where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-    pub fn new<R: dmac::ReadyChannel>(
+    pub fn new<R: safe_dma::Uninit>(
         mut pcc: Pcc<PccMode>,
         channel: Channel<Id, R>,
         i2c: I2C,
@@ -94,7 +91,8 @@ where
             });
         });
 
-        let pcc_xfer_handle = SafeTransfer::new(channel, pcc, fb1);
+        // Default to lowest `PriorityLevel` pre-init, user-supplied priority comes later
+        let pcc_xfer_handle = SafeTransfer::new(channel, pcc, fb1, PriorityLevel::Lvl0);
 
         Self {
             pcc_xfer_handle,
@@ -102,7 +100,7 @@ where
             cam_rst: pa15,
             cam_sync,
             cam_clk: pb19,
-            fb2: Some(fb2),
+            inactive_buf: Some(fb2),
             delay,
             _en: PhantomData,
         }
@@ -119,6 +117,7 @@ where
     pub async fn init(
         self,
         init_regs: &[(u16, u8)],
+        dma_priority: PriorityLevel,
     ) -> Result<Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
         let mut cam = Camera {
             pcc_xfer_handle: self.pcc_xfer_handle,
@@ -126,7 +125,7 @@ where
             cam_rst: self.cam_rst,
             cam_sync: self.cam_sync,
             cam_clk: self.cam_clk,
-            fb2: self.fb2,
+            inactive_buf: self.inactive_buf,
             delay: self.delay,
             _en: PhantomData,
         };
@@ -148,7 +147,7 @@ where
 
         log_debug!("Wait for VSync: ");
         while cam.cam_sync.den1.is_high() {}
-        cam.pcc_xfer_handle.restart();
+        cam.pcc_xfer_handle.restart(dma_priority);
         Ok(cam)
     }
 }
@@ -264,25 +263,25 @@ where
 
     /// Read a complete frame from the camera
     pub fn read_frame(&mut self) -> Option<&mut FrameBuf> {
+        // PERF: Use an ExtInt for this so the wait is non-blocking
         log_debug!("Wait for VSync: ");
         while self.cam_sync.den1.is_high() {}
-        let fb1 = self
+        let full_buf = self
             .pcc_xfer_handle
-            .swap(self.fb2.take().expect("Framebuffer missing"));
-        self.fb2.replace(fb1);
-        self.fb2.as_deref_mut()
+            .swap(self.inactive_buf.take().expect("Framebuffer missing"));
+        self.inactive_buf.replace(full_buf);
+        self.inactive_buf.as_deref_mut()
     }
 
-    /// Configure windowing
-    pub async fn set_window(
-        &mut self,
-        x_start: u16,
-        y_start: u16,
-        width: u16,
-        height: u16,
-    ) -> Result<(), I2C::Error> {
-        let x_end = x_start + width - 1;
-        let y_end = y_start + height - 1;
+    /// Configure window position, locked to the contant resolution
+    pub async fn set_window(&mut self, x_start: u16, y_start: u16) -> Result<(), I2C::Error> {
+        let x_end = x_start + H_RES as u16 - 1;
+        let y_end = y_start + V_RES as u16 - 1;
+
+        if x_end > SENSOR_H as u16 || y_end > SENSOR_V as u16 {
+            defmt::warn!("Window overlaaps edge of sensor, aborting");
+            return Ok(());
+        }
 
         // Set window coordinates
         self.write_reg(0x3800, (x_start >> 8) as u8).await?; // X start high
@@ -295,26 +294,12 @@ where
         self.write_reg(0x3807, y_end as u8).await?; // Y end low
 
         // Set output size to match window
-        self.write_reg(0x3808, (width >> 8) as u8).await?; // Output width high
-        self.write_reg(0x3809, width as u8).await?; // Output width low
-        self.write_reg(0x380A, (height >> 8) as u8).await?; // Output height high
-        self.write_reg(0x380B, height as u8).await?; // Output height low
+        self.write_reg(0x3808, (H_RES >> 8) as u8).await?; // Output width high
+        self.write_reg(0x3809, H_RES as u8).await?; // Output width low
+        self.write_reg(0x380A, (V_RES >> 8) as u8).await?; // Output height high
+        self.write_reg(0x380B, V_RES as u8).await?; // Output height low
 
         Ok(())
-    }
-
-    /// Util for region -> window
-    pub async fn set_window_region(
-        &mut self,
-        region: (usize, usize, usize, usize),
-    ) -> Result<(), I2C::Error> {
-        self.set_window(
-            region.0 as u16,
-            region.1 as u16,
-            region.2 as u16,
-            region.3 as u16,
-        )
-        .await
     }
 
     /// Set manual exposure
@@ -346,16 +331,15 @@ where
     /// Verify sensor is responding with correct chip ID
     pub async fn get_sensor_id(&mut self) -> Result<u16, I2C::Error> {
         let mut id = [0u8; 2];
-
         self.read_reg(0x300A, &mut id[0..1]).await?; // Chip ID high byte
         self.read_reg(0x300B, &mut id[1..2]).await?; // Chip ID low byte
-
         Ok(u16::from_be_bytes(id))
     }
 }
 
 /// Calculate OV5640 clock tree based on register settings.
 /// Matches the esp32-camera calc_sysclk function.
+#[cfg(debug_assertions)]
 pub fn calc_and_print_clocks(
     xclk: Rate<u32, 1, 1>,
     pll_bypass: bool,
