@@ -276,7 +276,8 @@ where
     /// Read a complete frame from the camera
     pub fn read_frame(&mut self) -> Option<&mut FrameBuf> {
         // PERF: Use an ExtInt for this so the wait is non-blocking
-        log_debug!("Wait for VSync: ");
+        log_debug!("Wait for VSync falling edge: ");
+        while self.cam_sync.den1.is_low() {}
         while self.cam_sync.den1.is_high() {}
         let full_buf = self
             .pcc_xfer_handle
