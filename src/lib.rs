@@ -159,7 +159,19 @@ where
     <I2C as embedded_hal_async::i2c::ErrorType>::Error: Format,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-    pub async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
+
+    pub async fn reconfigure(&mut self, regs: &[(u16, u8)]) -> Result<(), I2C::Error> {
+        // Wait for frame boundary
+        while self.cam_sync.den1.is_high() {}
+        self.write_reg(0x3008, 0x82).await?; // SW Power down
+    
+        self.write_regs(regs).await?;
+
+        D::delay(10.millis()).await;
+        self.write_reg(0x3008, 0x02).await // SW Power up
+    }
+
+    async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
         log_debug!("Writing {:#X} to {:#X}", val, reg);
         self.i2c
             .write(CAM_ADDR, &[(reg >> 8) as u8, reg as u8, val])
