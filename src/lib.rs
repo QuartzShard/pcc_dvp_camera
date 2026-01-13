@@ -165,9 +165,9 @@ where
         while self.cam_sync.den1.is_high() {}
         self.write_reg(0x3008, 0x82).await?; // SW Power down
     
-        self.write_regs(regs).await?;
-
         D::delay(10.millis()).await;
+        self.write_regs(regs).await?;
+        D::delay(100.millis()).await;
         self.write_reg(0x3008, 0x02).await // SW Power up
     }
 
