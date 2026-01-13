@@ -160,15 +160,36 @@ where
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
 
-    pub async fn reconfigure(&mut self, regs: impl Iterator<Item = (u16, u8)>) -> Result<(), I2C::Error> {
+    /// Writes an iterator of registers to the cam, Optionally power cycling:
+    ///
+    /// Some(true) => Hard reset
+    /// Some(false) => Soft reset
+    /// None => No reset
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if I2C Fails
+    pub async fn reconfigure(&mut self, regs: impl Iterator<Item = (u16, u8)>, power_cycle: Option<bool>) -> Result<(), I2C::Error> {
         // Wait for frame boundary
         while self.cam_sync.den1.is_high() {}
-        self.write_reg(0x3008, 0x82).await?; // SW Power down
+        if let Some(hard) = power_cycle {
+            if hard {
+                self.cam_rst.set_low().ok();
+                D::delay(5.millis()).await;
+                self.cam_rst.set_high().ok();
+                D::delay(20.millis()).await;
+            }
+            self.write_reg(0x3008, 0x82).await?; // SW Power down
+            D::delay(10.millis()).await;
+        }
     
-        D::delay(10.millis()).await;
         self.write_regs(regs).await?;
-        D::delay(100.millis()).await;
-        self.write_reg(0x3008, 0x02).await // SW Power up
+
+        if let Some(_) = power_cycle {
+            D::delay(100.millis()).await;
+            self.write_reg(0x3008, 0x02).await?; // SW Power up
+        }
+        Ok(())
     }
 
     async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
