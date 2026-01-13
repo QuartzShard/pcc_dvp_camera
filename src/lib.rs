@@ -137,7 +137,7 @@ where
         D::delay(20.millis()).await;
 
         // Init Regs
-        cam.write_regs(init_regs).await?;
+        cam.write_regs(init_regs.iter().copied()).await?;
         D::delay(100.millis()).await;
 
         cam.write_reg(0x3008, 0x02).await?; // Exit software power down
@@ -160,7 +160,7 @@ where
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
 
-    pub async fn reconfigure(&mut self, regs: &[(u16, u8)]) -> Result<(), I2C::Error> {
+    pub async fn reconfigure(&mut self, regs: impl Iterator<Item = (u16, u8)>) -> Result<(), I2C::Error> {
         // Wait for frame boundary
         while self.cam_sync.den1.is_high() {}
         self.write_reg(0x3008, 0x82).await?; // SW Power down
@@ -179,12 +179,12 @@ where
         Ok(())
     }
 
-    async fn write_regs(&mut self, regs: &[(u16, u8)]) -> Result<(), I2C::Error> {
+    async fn write_regs(&mut self, regs: impl Iterator<Item = (u16, u8)>) -> Result<(), I2C::Error> {
         for (reg, val) in regs {
-            if *reg == REG_DLY {
-                D::delay((*val as u64).millis()).await;
+            if reg == REG_DLY {
+                D::delay((val as u64).millis()).await;
             } else {
-                self.write_reg(*reg, *val).await?;
+                self.write_reg(reg, val).await?;
             }
         }
         Ok(())
@@ -239,7 +239,7 @@ where
         };
 
         // Generate register values
-        let regs = [
+        let regs: [(u16, u8); 9] = [
             (0x3039, if pll_bypass { 0x80 } else { 0x00 }),
             (0x3034, if bit_mode == 10 { 0x1A } else { 0x18 }),
             (0x3035, 0x01 | ((pll_sys_div & 0x0F) << 4)),
@@ -269,7 +269,7 @@ where
             bit_mode,
         );
 
-        self.write_regs(&regs).await?;
+        self.write_regs(regs.iter().copied()).await?;
         Ok(())
     }
 
