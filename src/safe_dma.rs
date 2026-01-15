@@ -1,7 +1,9 @@
 use core::mem::ManuallyDrop;
 
 use atsamd_hal::dmac::{
-    Buffer, BufferPair, BurstLength, Busy, ChId, Channel, FifoThreshold, PriorityLevel, Ready, ReadyChannel, Status, Transfer, TriggerAction, TriggerSource, Uninitialized, UninitializedFuture
+    Buffer, BufferPair, BurstLength, Busy, ChId, Channel, FifoThreshold, PriorityLevel, Ready,
+    ReadyChannel, Status, Transfer, TriggerAction, TriggerSource, Uninitialized,
+    UninitializedFuture,
 };
 
 type BusyChannel<Id> = Channel<Id, Busy>;

@@ -15,6 +15,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrcat"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98a2f6f53f9419b4445e2786ce1f44bc6648998a2dc71e7db0b44bddc2536da5"
+
+[[package]]
 name = "atsamd-hal"
 version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -575,6 +581,7 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 name = "pcc_dvp_camera"
 version = "0.1.0"
 dependencies = [
+ "arrcat",
  "atsamd-hal",
  "atsamd51-pcc",
  "defmt 1.0.1",

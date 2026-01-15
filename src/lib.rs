@@ -39,26 +39,47 @@ impl State for Disabled {}
 impl seal::Sealed for Disabled {}
 
 #[allow(private_bounds)]
+/// Camera Driver.
+///
+/// The `const fn` [fb_size](fb_size) is provded for convenience, recommend using this to set the
+/// generic param:
+/// ```rust
+/// const H_RES: usize = 160;
+/// const V_RES: usize = 120;
+/// const FB_SIZE = fb_size(H_RES, V_RES);
+/// let cam: Camera<_, _, _, _,FB_SIZE> = Cam::new(..);
+/// let cam = cam.init(&init_regs(H_RES, V_RES, 8), PriotityLevel::Lvl3);
+/// ```
+/// Also, It's probably a good idea to Type-Alias your camera config
+/// ```
+/// pub type Cam = Camera<'static, Channel::Ch0, I2C, Delay, Enabled, FB_SIZE>;
+/// let cam: Cam = Camera::new(..);
+/// ```
 pub struct Camera<
     'framebuf,
     C: dmac::AnyChannel<Status = Busy>,
     I2C,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
     S: State,
+    const FB_SIZE: usize,
 > {
-    pcc_xfer_handle: SafeTransfer<C::Id, Pcc<PccMode>, &'framebuf mut FrameBuf>,
+    pcc_xfer_handle: SafeTransfer<C::Id, Pcc<PccMode>, &'framebuf mut FrameBuf<FB_SIZE>>,
     i2c: I2C,
     cam_rst: Pin<PA15, PushPullOutput>,
     cam_sync: pcc::SyncPins,
     cam_clk: GclkOut<PB15>,
-    inactive_buf: Option<&'framebuf mut FrameBuf>,
+    inactive_buf: Option<&'framebuf mut FrameBuf<FB_SIZE>>,
     delay: D,
     _en: PhantomData<S>,
 }
 
-pub type FrameBuf = [u8; H_RES * V_RES * 2];
+pub type FrameBuf<const FB_SIZE: usize> = [u8; FB_SIZE];
+pub const fn fb_size(h_res: usize, v_res: usize) -> usize {
+    h_res * v_res * 2
+}
 
-unsafe impl<'framebuf, Id, I2C, D, S> Send for Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, S>
+unsafe impl<'framebuf, Id, I2C, D, S, const FB_SIZE: usize> Send
+    for Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, S, FB_SIZE>
 where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
@@ -66,7 +87,8 @@ where
 {
 }
 
-impl<'framebuf, Id, I2C, D> Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled>
+impl<'framebuf, Id, I2C, D, const FB_SIZE: usize>
+    Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled, FB_SIZE>
 where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
@@ -78,8 +100,8 @@ where
         mut pa15: Pin<PA15, PushPullOutput>,
         pb19: GclkOut<PB15>,
         delay: D,
-        fb1: &'framebuf mut FrameBuf,
-        fb2: &'framebuf mut FrameBuf,
+        fb1: &'framebuf mut FrameBuf<FB_SIZE>,
+        fb2: &'framebuf mut FrameBuf<FB_SIZE>,
     ) -> Self {
         pa15.set_low().ok();
 
@@ -107,7 +129,8 @@ where
     }
 }
 
-impl<'framebuf, Id, I2C, D> Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled>
+impl<'framebuf, Id, I2C, D, const FB_SIZE: usize>
+    Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Disabled, FB_SIZE>
 where
     Id: dmac::ChId,
     I2C: embedded_hal_async::i2c::I2c,
@@ -118,7 +141,8 @@ where
         self,
         init_regs: &[(u16, u8)],
         dma_priority: PriorityLevel,
-    ) -> Result<Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Enabled>, I2C::Error> {
+    ) -> Result<Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, Enabled, FB_SIZE>, I2C::Error>
+    {
         let mut cam = Camera {
             pcc_xfer_handle: self.pcc_xfer_handle,
             i2c: self.i2c,
@@ -152,14 +176,14 @@ where
     }
 }
 
-impl<'framebuffer, Id, I2C, D> Camera<'framebuffer, Channel<Id, dmac::Busy>, I2C, D, Enabled>
+impl<'framebuffer, Id, I2C, D, const FB_SIZE: usize>
+    Camera<'framebuffer, Channel<Id, dmac::Busy>, I2C, D, Enabled, FB_SIZE>
 where
     Id: dmac::ChId,
     I2C: embedded_hal_async::i2c::I2c,
     <I2C as embedded_hal_async::i2c::ErrorType>::Error: Format,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-
     /// Writes an iterator of registers to the cam, Optionally power cycling:
     ///
     /// Some(true) => Hard reset
@@ -169,7 +193,11 @@ where
     /// # Errors
     ///
     /// This function will return an error if I2C Fails
-    pub async fn reconfigure(&mut self, regs: impl Iterator<Item = (u16, u8)>, power_cycle: Option<bool>) -> Result<(), I2C::Error> {
+    pub async fn reconfigure(
+        &mut self,
+        regs: impl Iterator<Item = (u16, u8)>,
+        power_cycle: Option<bool>,
+    ) -> Result<(), I2C::Error> {
         // Wait for frame boundary
         while self.cam_sync.den1.is_high() {}
         if let Some(hard) = power_cycle {
@@ -182,7 +210,7 @@ where
             self.write_reg(0x3008, 0x82).await?; // SW Power down
             D::delay(10.millis()).await;
         }
-    
+
         self.write_regs(regs).await?;
 
         if let Some(_) = power_cycle {
@@ -200,7 +228,10 @@ where
         Ok(())
     }
 
-    async fn write_regs(&mut self, regs: impl Iterator<Item = (u16, u8)>) -> Result<(), I2C::Error> {
+    async fn write_regs(
+        &mut self,
+        regs: impl Iterator<Item = (u16, u8)>,
+    ) -> Result<(), I2C::Error> {
         for (reg, val) in regs {
             if reg == REG_DLY {
                 D::delay((val as u64).millis()).await;
@@ -295,7 +326,7 @@ where
     }
 
     /// Read a complete frame from the camera
-    pub fn read_frame(&mut self) -> Option<&mut FrameBuf> {
+    pub fn read_frame(&mut self) -> Option<&mut FrameBuf<FB_SIZE>> {
         // PERF: Use an ExtInt for this so the wait is non-blocking
         log_debug!("Wait for VSync falling edge: ");
         while self.cam_sync.den1.is_low() {}

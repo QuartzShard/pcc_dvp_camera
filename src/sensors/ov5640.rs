@@ -1,26 +1,15 @@
 //! Constants and configuration for the OV5640
+
 pub const SENSOR_H: usize = 2608;
 pub const SENSOR_V: usize = 1952;
 pub const H_OFFSET: usize = 16;
 pub const V_OFFSET: usize = 4;
 
-pub const X_START: u16 = (SENSOR_H - (super::H_RES * super::IMAGE_SCALE + 2 * H_OFFSET)) as u16 / 2;
-pub const X_END: u16 = SENSOR_H as u16 - X_START;
-pub const Y_START: u16 = (SENSOR_V - (super::V_RES * super::IMAGE_SCALE + 2 * V_OFFSET)) as u16 / 2;
-pub const Y_END: u16 = SENSOR_V as u16 - Y_START;
-const _: () = assert!(
-    (super::H_RES * super::IMAGE_SCALE) as u16 == X_END - X_START - 2 * H_OFFSET as u16,
-    "Configured window is not the correct width"
-);
-const _: () = assert!(
-    (super::V_RES * super::IMAGE_SCALE) as u16 == Y_END - Y_START - 2 * V_OFFSET as u16,
-    "Configured window is not the correct width"
-);
-
 pub const REG_DLY: u16 = 0xFFFF;
 // 7-bit I2C address (0x78 >> 1)
 pub const CAM_ADDR: u8 = 0x3C;
-pub const INIT_REGS: [(u16, u8); 139] = [
+
+pub const INIT_START: [(u16, u8); 28] = [
     (SYSTEM_CTRL0, 0x82), // software reset
     (REG_DLY, 10),        // delay 10ms
     (SYSTEM_CTRL0, 0x42), // power down
@@ -53,132 +42,69 @@ pub const INIT_REGS: [(u16, u8); 139] = [
     //(FORMAT_CTRL00, 0x23), // RGB888, RGBRGB... sequence (0x2 = RGB888, 0x3 = RGBRGB order)
     (FORMAT_CTRL00, 0x61),   // RGB565, BGR... sequence
     (TIMING_TC_REG21, 0x01), // Horizontal binning
-    // AEC/AGC
-    (0x3A02, 0x03),
-    (0x3A03, 0xD8),
-    (0x3A08, 0x01),
-    (0x3A09, 0x27),
-    (0x3A0A, 0x00),
-    (0x3A0B, 0xF6),
-    (0x3A0D, 0x04),
-    (0x3A0E, 0x03),
-    (0x3A0F, 0x30), // ae_level
-    (0x3A10, 0x28), // ae_level
-    (0x3A11, 0x60), // ae_level
-    (0x3A13, 0x43),
-    (0x3A14, 0x03),
-    (0x3A15, 0xD8),
-    (0x3A18, 0x00), // gainceiling
-    (0x3A19, 0xF8), // gainceiling
-    (0x3A1B, 0x30), // ae_level
-    (0x3A1E, 0x26), // ae_level
-    (0x3A1F, 0x14), // ae_level
-    (0x3600, 0x08), // VCM debug
-    (0x3601, 0x33), // VCM debug
-    (0x4001, 0x02), // BLC
-    (0x4004, 0x02), // BLC
-    // AWB
-    (0x5180, 0xFF),
-    (0x5181, 0xF2),
-    (0x5182, 0x00),
-    (0x5183, 0x14),
-    (0x5184, 0x25),
-    (0x5185, 0x24),
-    (0x5186, 0x09),
-    (0x5187, 0x09),
-    (0x5188, 0x09),
-    (0x5189, 0x75),
-    (0x518A, 0x54),
-    (0x518B, 0xE0),
-    (0x518C, 0xB2),
-    (0x518D, 0x42),
-    (0x518E, 0x3D),
-    (0x518F, 0x56),
-    (0x5190, 0x46),
-    (0x5191, 0xF8),
-    (0x5192, 0x04),
-    (0x5193, 0x70),
-    (0x5194, 0xF0),
-    (0x5195, 0xF0),
-    (0x5196, 0x03),
-    (0x5197, 0x01),
-    (0x5198, 0x04),
-    (0x5199, 0x12),
-    (0x519A, 0x04),
-    (0x519B, 0x00),
-    (0x519C, 0x06),
-    (0x519D, 0x82),
-    (0x519E, 0x38),
-    //CIP control (Sharpness)
-    (0x5300, 0x10), //sharpness
-    (0x5301, 0x10), //sharpness
-    (0x5302, 0x18), //sharpness
-    (0x5303, 0x19), //sharpness
-    (0x5304, 0x10),
-    (0x5305, 0x10),
-    (0x5306, 0x08), //denoise
-    (0x5307, 0x16),
-    (0x5308, 0x40),
-    (0x5309, 0x10), //sharpness
-    (0x530A, 0x10), //sharpness
-    (0x530B, 0x04), //sharpness
-    (0x530C, 0x06), //sharpness
-    // color matrix (Saturation)
-    (0x5381, 0x1E),
-    (0x5382, 0x5B),
-    (0x5383, 0x08),
-    (0x5384, 0x0A),
-    (0x5385, 0x7E),
-    (0x5386, 0x88),
-    (0x5387, 0x7C),
-    (0x5388, 0x6C),
-    (0x5389, 0x10),
-    (0x538A, 0x01),
-    (0x538B, 0x98),
-    // GAMMA
-    (0x5480, 0x01),
-    (0x5481, 0x00),
-    (0x5482, 0x1E),
-    (0x5483, 0x3B),
-    (0x5484, 0x58),
-    (0x5485, 0x66),
-    (0x5486, 0x71),
-    (0x5487, 0x7D),
-    (0x5488, 0x83),
-    (0x5489, 0x8F),
-    (0x548A, 0x98),
-    (0x548B, 0xA6),
-    (0x548C, 0xB8),
-    (0x548D, 0xCA),
-    (0x548E, 0xD7),
-    (0x548F, 0xE3),
-    (0x5490, 0x1D),
-    //(0x3503, 0x00), // Disable Auto Gain and Exposure
-    // === TIMING CONTROL (160x120 from centered 1280x960) ===
-    (0x3800, (X_START >> 8) as u8),        // X start high
-    (0x3801, (X_START & 0xFF) as u8),      // X start low
-    (0x3802, (Y_START >> 8) as u8),        // Y start high
-    (0x3803, (Y_START & 0xFF) as u8),      // Y start low
-    (0x3804, (X_END >> 8) as u8),          // X end high
-    (0x3805, (X_END & 0xFF) as u8),        // X end low
-    (0x3806, (Y_END >> 8) as u8),          // Y end high
-    (0x3807, (Y_END & 0xFF) as u8),        // Y end low
-    (0x3808, (super::H_RES >> 8) as u8),   // H output high (160)
-    (0x3809, (super::H_RES & 0xFF) as u8), // H output low
-    (0x380A, (super::V_RES >> 8) as u8),   // V output high (120)
-    (0x380B, (super::V_RES & 0xFF) as u8), // V output low
-    // === ISP OFFSETS ===
-    (0x3810, (H_OFFSET >> 8) as u8),   // H offset high
-    (0x3811, (H_OFFSET & 0xFF) as u8), // H offset low
-    (0x3812, (V_OFFSET >> 8) as u8),   // V offset high
-    (0x3813, (V_OFFSET & 0xFF) as u8), // V offset low
     // === DVP CONTROL ===
-    (0x4740, 0x2D), // PCLK active high (bit 5), Gate PCLK unser VSYNC, HREF/VSYNC active high
-    //
+    (0x4740, 0x29), // PCLK active high (bit 5), Gate PCLK under VSYNC, HREF/VSYNC active high
+    (0x4745, 0x05), // Reverse Bit Order
+    (0x471D, 0x00), // VSYNC Pulse at frame start
+];
+
+pub const INIT_END: [(u16, u8); 2] = [
     (SYSTEM_CTRL0, 0x02), // Power up
     (REG_DLY, 100),
 ];
+pub enum InitLen {}
+/// Returns a "default" set of init regs for a centered window based on your resolution/scale.
+#[allow(non_local_definitions)]
+pub const fn init_regs(
+    h_res: usize,
+    v_res: usize,
+    image_scale: usize,
+) -> [(u16, u8); InitLen::LEN] {
+    let resolution = resolution_regs(h_res, v_res, image_scale);
 
+    arrcat::concat_arrays!(
+        length_type = InitLen;
+        INIT_START,
+        resolution: [_; 16],
+        INIT_END
+    )
+}
+
+// TODO: HTS and VTS
+pub const fn resolution_regs(h_res: usize, v_res: usize, image_scale: usize) -> [(u16, u8); 16] {
+    let x_start: u16 = (SENSOR_H - (h_res * image_scale + 2 * H_OFFSET)) as u16 / 2;
+    let x_end: u16 = SENSOR_H as u16 - x_start;
+    let y_start: u16 = (SENSOR_V - (v_res * image_scale + 2 * V_OFFSET)) as u16 / 2;
+    let y_end: u16 = SENSOR_V as u16 - y_start;
+    assert!(
+        (h_res * image_scale) as u16 == x_end - x_start - 2 * H_OFFSET as u16,
+        "Configured window is not the correct width"
+    );
+    assert!(
+        (v_res * image_scale) as u16 == y_end - y_start - 2 * V_OFFSET as u16,
+        "Configured window is not the correct width"
+    );
+    [
+        // === TIMING CONTROL (160x120 from centered 1280x960) ===
+        (0x3800, (x_start >> 8) as u8),   // X start high
+        (0x3801, (x_start & 0xFF) as u8), // X start low
+        (0x3802, (y_start >> 8) as u8),   // Y start high
+        (0x3803, (y_start & 0xFF) as u8), // Y start low
+        (0x3804, (x_end >> 8) as u8),     // X end high
+        (0x3805, (x_end & 0xFF) as u8),   // X end low
+        (0x3806, (y_end >> 8) as u8),     // Y end high
+        (0x3807, (y_end & 0xFF) as u8),   // Y end low
+        (0x3808, (h_res >> 8) as u8),     // H output high (160)
+        (0x3809, (h_res & 0xFF) as u8),   // H output low
+        (0x380A, (v_res >> 8) as u8),     // V output high (120)
+        (0x380B, (v_res & 0xFF) as u8),   // V output low
+        // === ISP OFFSETS ===
+        (0x3810, (H_OFFSET >> 8) as u8),   // H offset high
+        (0x3811, (H_OFFSET & 0xFF) as u8), // H offset low
+        (0x3812, (V_OFFSET >> 8) as u8),   // V offset high
+        (0x3813, (V_OFFSET & 0xFF) as u8), // V offset low
+    ]
+}
 // OV5640 register definitions.
 
 /* system control registers */

@@ -11,6 +11,7 @@ atsamd-hal = { version = "0.22.2", optional = true, features=["dma", "defmt", "a
 embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
 fugit = { version = "0.3.9", features = ["defmt"] }
 rtic-time = "2.0.1"
+arrcat = "0.1.1"
 
 [features]
 default = ["ov5640", "samd51j"]
