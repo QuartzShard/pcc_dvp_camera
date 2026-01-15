@@ -76,14 +76,24 @@ pub const fn resolution_regs(h_res: usize, v_res: usize, image_scale: usize) -> 
     let x_end: u16 = SENSOR_H as u16 - x_start;
     let y_start: u16 = (SENSOR_V - (v_res * image_scale + 2 * V_OFFSET)) as u16 / 2;
     let y_end: u16 = SENSOR_V as u16 - y_start;
+
     assert!(
         (h_res * image_scale) as u16 == x_end - x_start - 2 * H_OFFSET as u16,
         "Configured window is not the correct width"
     );
     assert!(
         (v_res * image_scale) as u16 == y_end - y_start - 2 * V_OFFSET as u16,
-        "Configured window is not the correct width"
+        "Configured window is not the correct height"
     );
+    assert!(
+        (h_res * image_scale) <= SENSOR_H - 2 * H_OFFSET,
+        "Source frame too wide, reduce scale or output resolution"
+    );
+    assert!(
+        (v_res * image_scale) <= SENSOR_V - 2 * V_OFFSET,
+        "Source frame too tall, reduce scale or output resolution"
+    );
+
     [
         // === TIMING CONTROL (160x120 from centered 1280x960) ===
         (0x3800, (x_start >> 8) as u8),   // X start high
