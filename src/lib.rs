@@ -41,7 +41,7 @@ impl seal::Sealed for Disabled {}
 #[allow(private_bounds)]
 /// Camera Driver.
 ///
-/// The `const fn` [fb_size](fb_size) is provded for convenience, recommend using this to set the
+/// The `const fn` [fb_size] is provded for convenience, recommend using this to set the
 /// generic param:
 /// ```rust
 /// const H_RES: usize = 160;
@@ -75,7 +75,9 @@ pub struct Camera<
 
 pub type FrameBuf<const FB_SIZE: usize> = [u8; FB_SIZE];
 pub const fn fb_size(h_res: usize, v_res: usize) -> usize {
-    h_res * v_res * 2
+    let fb_size = h_res * v_res * 2;
+    let _ = assert!(fb_size <= 65535, "Frame Buffer too large for single DMA");
+    fb_size
 }
 
 unsafe impl<'framebuf, Id, I2C, D, S, const FB_SIZE: usize> Send
