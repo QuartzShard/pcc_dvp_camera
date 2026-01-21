@@ -171,7 +171,7 @@ where
         log_debug!("Sensor ID: {:#X}", id);
         assert_eq!(id, 0x5640);
 
-        cam.pcc_xfer_handle.restart(Some(dma_priority));
+        cam.pcc_xfer_handle.start_reinit(dma_priority);
         Ok(cam)
     }
 }
@@ -198,6 +198,12 @@ where
         regs: impl Iterator<Item = (u16, u8)>,
         power_cycle: Option<bool>,
     ) -> Result<(), I2C::Error> {
+        Self::vsync(&self.cam_sync);
+        unsafe {
+            self.pcc_xfer_handle.with_buffers(|pcc, fb| {
+                pcc.configure(|p| p.mr().modify(|_, w| w.pcen().clear_bit()));
+            })
+        };
         if let Some(hard) = power_cycle {
             if hard {
                 self.cam_rst.set_low().ok();
@@ -215,7 +221,12 @@ where
             D::delay(100.millis()).await;
             self.write_reg(0x3008, 0x02).await?; // SW Power up
         }
-
+        unsafe {
+            self.pcc_xfer_handle.with_buffers(|pcc, fb| {
+                pcc.configure(|p| p.mr().modify(|_, w| w.pcen().set_bit()));
+            })
+        };
+        self.pcc_xfer_handle.restart(None);
         self.read_frame();
         Ok(())
     }
