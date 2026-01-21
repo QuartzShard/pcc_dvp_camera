@@ -171,9 +171,7 @@ where
         log_debug!("Sensor ID: {:#X}", id);
         assert_eq!(id, 0x5640);
 
-        log_debug!("Wait for VSync: ");
-        while cam.cam_sync.den1.is_high() {}
-        cam.pcc_xfer_handle.restart(dma_priority);
+        cam.resync_framebuf(Some(dma_priority));
         Ok(cam)
     }
 }
@@ -200,8 +198,7 @@ where
         regs: impl Iterator<Item = (u16, u8)>,
         power_cycle: Option<bool>,
     ) -> Result<(), I2C::Error> {
-        // Wait for frame boundary
-        while self.cam_sync.den1.is_high() {}
+        self.vsync();
         if let Some(hard) = power_cycle {
             if hard {
                 self.cam_rst.set_low().ok();
@@ -219,7 +216,25 @@ where
             D::delay(100.millis()).await;
             self.write_reg(0x3008, 0x02).await?; // SW Power up
         }
+
+        // Wait for VSYNC and restart the DMA to prevent frame-tear after a reconfigure
+        self.resync_framebuf(None);
+
         Ok(())
+    }
+
+    /// Spin-Wait for VSYNC falling edge
+    /// PERF: Make Async with ExtInt
+    fn vsync(&self) {
+        log_debug!("Wait for VSYNC Falling edge");
+        while self.cam_sync.den1.is_low() {}
+        while self.cam_sync.den1.is_high() {}
+    }
+
+    /// Wait for frame boundary, then restart transfer to re-align buffer
+    pub fn resync_framebuf(&mut self, priority: Option<PriorityLevel>) {
+        self.vsync();
+        self.pcc_xfer_handle.restart(priority);
     }
 
     async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
@@ -329,10 +344,7 @@ where
 
     /// Read a complete frame from the camera
     pub fn read_frame(&mut self) -> Option<&mut FrameBuf<FB_SIZE>> {
-        // PERF: Use an ExtInt for this so the wait is non-blocking
-        log_debug!("Wait for VSync falling edge: ");
-        while self.cam_sync.den1.is_low() {}
-        while self.cam_sync.den1.is_high() {}
+        self.vsync();
         let full_buf = self
             .pcc_xfer_handle
             .swap(self.inactive_buf.take().expect("Framebuffer missing"));

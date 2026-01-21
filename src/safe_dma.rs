@@ -14,6 +14,7 @@ impl Uninit for UninitializedFuture {}
 
 pub(crate) struct SafeTransfer<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> {
     inner: ManuallyDrop<Transfer<BusyChannel<C>, BufferPair<S, D>>>,
+    priority: PriorityLevel,
 }
 
 impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> {
@@ -38,7 +39,10 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
         // transfer is stopped before the `SafeTransfer` is destroyed
         let transfer = unsafe { Self::start_transfer_reinit(channel, source, dest, priority) };
 
-        Self { inner: transfer }
+        Self {
+            inner: transfer,
+            priority,
+        }
     }
 
     unsafe fn start_transfer_reinit<R: Uninit>(
@@ -78,14 +82,16 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
         buf2
     }
 
-    pub fn restart(&mut self, priority: PriorityLevel) {
+    /// Restart transfer, optionally at a new priority level
+    pub fn restart(&mut self, priority: Option<PriorityLevel>) {
+        self.priority = priority.unwrap_or(self.priority);
         // SAFETY: Nothing here can panic, and it's back in place before return. Do not read
         // self.inner after this
         let xfer = unsafe { ManuallyDrop::take(&mut self.inner) };
         let (ch, pcc, fb) = xfer.stop();
         let ch = ch.reset();
         // SAFETY: If it was valid before, it's still valid
-        self.inner = unsafe { Self::start_transfer_reinit(ch, pcc, fb, priority) };
+        self.inner = unsafe { Self::start_transfer_reinit(ch, pcc, fb, self.priority) };
     }
 }
 
