@@ -198,7 +198,6 @@ where
         regs: impl Iterator<Item = (u16, u8)>,
         power_cycle: Option<bool>,
     ) -> Result<(), I2C::Error> {
-        Self::vsync(&self.cam_sync);
         if let Some(hard) = power_cycle {
             if hard {
                 self.cam_rst.set_low().ok();
@@ -217,8 +216,9 @@ where
             self.write_reg(0x3008, 0x02).await?; // SW Power up
         }
 
-        // Wait for VSYNC and restart the DMA to prevent frame-tear after a reconfigure
-        self.resync_framebuf(None);
+        self.read_frame();
+
+        //self.resync_framebuf(None);
 
         Ok(())
     }
