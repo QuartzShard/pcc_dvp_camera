@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _};
+use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _, SyncPins};
 
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
@@ -198,7 +198,7 @@ where
         regs: impl Iterator<Item = (u16, u8)>,
         power_cycle: Option<bool>,
     ) -> Result<(), I2C::Error> {
-        self.vsync();
+        Self::vsync(&self.cam_sync);
         if let Some(hard) = power_cycle {
             if hard {
                 self.cam_rst.set_low().ok();
@@ -225,16 +225,18 @@ where
 
     /// Spin-Wait for VSYNC falling edge
     /// PERF: Make Async with ExtInt
-    fn vsync(&self) {
+    fn vsync(sync: &SyncPins) {
         log_debug!("Wait for VSYNC Falling edge");
-        while self.cam_sync.den1.is_low() {}
-        while self.cam_sync.den1.is_high() {}
+        while sync.den1.is_low() {}
+        while sync.den1.is_high() {}
     }
 
-    /// Wait for frame boundary, then restart transfer to re-align buffer
+    /// Stop transfer, Wait for frame boundary, then restart transfer to re-align buffer
     pub fn resync_framebuf(&mut self, priority: Option<PriorityLevel>) {
-        self.vsync();
-        self.pcc_xfer_handle.restart(priority);
+        let waitfn = Some(|| {
+            Self::vsync(&self.cam_sync);
+        });
+        self.pcc_xfer_handle.restart(priority, waitfn);
     }
 
     async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
@@ -344,7 +346,7 @@ where
 
     /// Read a complete frame from the camera
     pub fn read_frame(&mut self) -> Option<&mut FrameBuf<FB_SIZE>> {
-        self.vsync();
+        Self::vsync(&self.cam_sync);
         let full_buf = self
             .pcc_xfer_handle
             .swap(self.inactive_buf.take().expect("Framebuffer missing"));

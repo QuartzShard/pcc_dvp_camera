@@ -82,14 +82,16 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
         buf2
     }
 
-    /// Restart transfer, optionally at a new priority level
-    pub fn restart(&mut self, priority: Option<PriorityLevel>) {
+    /// Restart transfer, optionally at a new priority level, and optionally waiting for some sync
+    /// condition
+    pub fn restart(&mut self, priority: Option<PriorityLevel>, wait: Option<impl Fn()>) {
         self.priority = priority.unwrap_or(self.priority);
         // SAFETY: Nothing here can panic, and it's back in place before return. Do not read
         // self.inner after this
         let xfer = unsafe { ManuallyDrop::take(&mut self.inner) };
         let (ch, pcc, fb) = xfer.stop();
         let ch = ch.reset();
+        wait.map(|w| w());
         // SAFETY: If it was valid before, it's still valid
         self.inner = unsafe { Self::start_transfer_reinit(ch, pcc, fb, self.priority) };
     }
