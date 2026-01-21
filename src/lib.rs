@@ -171,7 +171,7 @@ where
         log_debug!("Sensor ID: {:#X}", id);
         assert_eq!(id, 0x5640);
 
-        cam.resync_framebuf(Some(dma_priority));
+        cam.pcc_xfer_handle.restart(Some(dma_priority));
         Ok(cam)
     }
 }
@@ -217,9 +217,6 @@ where
         }
 
         self.read_frame();
-
-        //self.resync_framebuf(None);
-
         Ok(())
     }
 
@@ -229,20 +226,6 @@ where
         log_debug!("Wait for VSYNC Falling edge");
         while sync.den1.is_low() {}
         while sync.den1.is_high() {}
-    }
-
-    /// Stop transfer, Wait for frame boundary, then restart transfer to re-align buffer
-    pub fn resync_framebuf(&mut self, priority: Option<PriorityLevel>) {
-        let waitfn = Some(|pcc: &mut Pcc<PccMode>| {
-            pcc.configure(|pcc| {
-                pcc.mr().modify(|_, w| w.pcen().clear_bit());
-            });
-            Self::vsync(&self.cam_sync);
-            pcc.configure(|pcc| {
-                pcc.mr().modify(|_, w| w.pcen().set_bit());
-            });
-        });
-        self.pcc_xfer_handle.restart(priority, waitfn);
     }
 
     async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
