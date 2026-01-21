@@ -233,8 +233,14 @@ where
 
     /// Stop transfer, Wait for frame boundary, then restart transfer to re-align buffer
     pub fn resync_framebuf(&mut self, priority: Option<PriorityLevel>) {
-        let waitfn = Some(|| {
+        let waitfn = Some(|pcc: &mut Pcc<PccMode>| {
+            pcc.configure(|pcc| {
+                pcc.mr().modify(|_, w| w.pcen().clear_bit());
+            });
             Self::vsync(&self.cam_sync);
+            pcc.configure(|pcc| {
+                pcc.mr().modify(|_, w| w.pcen().set_bit());
+            });
         });
         self.pcc_xfer_handle.restart(priority, waitfn);
     }
