@@ -9,7 +9,7 @@ pub const REG_DLY: u16 = 0xFFFF;
 // 7-bit I2C address (0x78 >> 1)
 pub const CAM_ADDR: u8 = 0x3C;
 
-pub const INIT_START: [(u16, u8); 28] = [
+pub const INIT_START: [(u16, u8); 27] = [
     (SYSTEM_CTRL0, 0x82), // software reset
     (REG_DLY, 10),        // delay 10ms
     (SYSTEM_CTRL0, 0x42), // power down
@@ -38,13 +38,11 @@ pub const INIT_START: [(u16, u8); 28] = [
     (0x370C, 0x02),
     (0x3634, 0x40),
     // === FORMAT CONTROL - RGB888 OUTPUT ===
-    (FORMAT_CTRL, 0x01), // ISP format: RGB
-    //(FORMAT_CTRL00, 0x23), // RGB888, RGBRGB... sequence (0x2 = RGB888, 0x3 = RGBRGB order)
+    (FORMAT_CTRL, 0x01),     // ISP format: RGB
     (FORMAT_CTRL00, 0x61),   // RGB565, BGR... sequence
     (TIMING_TC_REG21, 0x01), // Horizontal binning
     // === DVP CONTROL ===
     (0x4740, 0x29), // PCLK active high (bit 5), Gate PCLK under VSYNC, HREF/VSYNC active high
-    (0x4745, 0x05), // Reverse Bit Order
     (0x471D, 0x00), // VSYNC Pulse at frame start
 ];
 

@@ -216,13 +216,13 @@ where
             self.write_reg(0x3008, 0x02).await?; // SW Power up
         }
 
-        self.read_frame();
+        self.read_frame().await;
         Ok(())
     }
 
     /// Spin-Wait for VSYNC falling edge
     /// PERF: Make Async with ExtInt
-    fn vsync(sync: &SyncPins) {
+    async fn vsync(sync: &SyncPins) {
         log_debug!("Wait for VSYNC Falling edge");
         while sync.den1.is_low() {}
         while sync.den1.is_high() {}
@@ -334,8 +334,8 @@ where
     }
 
     /// Read a complete frame from the camera
-    pub fn read_frame(&mut self) -> Option<&mut FrameBuf<FB_SIZE>> {
-        Self::vsync(&self.cam_sync);
+    pub async fn read_frame(&mut self) -> Option<&mut FrameBuf<FB_SIZE>> {
+        Self::vsync(&self.cam_sync).await;
         let full_buf = self
             .pcc_xfer_handle
             .swap(self.inactive_buf.take().expect("Framebuffer missing"));

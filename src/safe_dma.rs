@@ -1,9 +1,8 @@
 use core::mem::ManuallyDrop;
 
 use atsamd_hal::dmac::{
-    Buffer, BufferPair, BurstLength, Busy, ChId, Channel, FifoThreshold, PriorityLevel, Ready,
-    ReadyChannel, Status, Transfer, TriggerAction, TriggerSource, Uninitialized,
-    UninitializedFuture,
+    Buffer, BufferPair, BurstLength, Busy, ChId, Channel, FifoThreshold, PriorityLevel, Status,
+    Transfer, TriggerAction, TriggerSource, Uninitialized, UninitializedFuture,
 };
 
 type BusyChannel<Id> = Channel<Id, Busy>;
@@ -62,10 +61,6 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
             Transfer::new_unchecked(channel, source, dest, true)
                 .begin(TriggerSource::PccRx, TriggerAction::Burst)
         })
-    }
-
-    pub fn xfer(&mut self) -> &mut Transfer<BusyChannel<C>, BufferPair<S, D>> {
-        &mut self.inner
     }
 
     pub fn swap(&mut self, buf1: D) -> D {
