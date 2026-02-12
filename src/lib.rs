@@ -6,13 +6,14 @@ use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _, SyncPins};
 
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
-    dmac::{self, Busy, Channel, PriorityLevel},
+    dmac::{self, Buffer, Busy, Channel, PriorityLevel},
     fugit::{self, ExtU64 as _, Rate},
     gpio::{PA15, PB15, Pin, PushPullOutput},
 };
 use defmt::Format;
 use embedded_hal::digital::OutputPin;
 
+mod framebuf;
 mod macros;
 mod safe_dma;
 pub mod sensors;
@@ -20,6 +21,7 @@ pub mod sensors;
 use rtic_time::Monotonic;
 use sensors::sensor::*;
 
+pub use crate::framebuf::FrameBuf;
 use crate::safe_dma::SafeTransfer;
 use crate::sensors::{H_RES, V_RES};
 
@@ -46,7 +48,7 @@ impl seal::Sealed for Disabled {}
 /// ```rust
 /// const H_RES: usize = 160;
 /// const V_RES: usize = 120;
-/// const FB_SIZE = fb_size(H_RES, V_RES);
+/// const FB_SIZE = FrameBuf::fb_size(H_RES, V_RES);
 /// let cam: Camera<_, _, _, _,FB_SIZE> = Cam::new(..);
 /// let cam = cam.init(&init_regs(H_RES, V_RES, 8), PriotityLevel::Lvl3);
 /// ```
@@ -71,13 +73,6 @@ pub struct Camera<
     inactive_buf: Option<&'framebuf mut FrameBuf<FB_SIZE>>,
     delay: D,
     _en: PhantomData<S>,
-}
-
-pub type FrameBuf<const FB_SIZE: usize> = [u8; FB_SIZE];
-pub const fn fb_size(h_res: usize, v_res: usize) -> usize {
-    let fb_size = h_res * v_res * 2;
-    let _ = assert!(fb_size <= 65535, "Frame Buffer too large for single DMA");
-    fb_size
 }
 
 unsafe impl<'framebuf, Id, I2C, D, S, const FB_SIZE: usize> Send

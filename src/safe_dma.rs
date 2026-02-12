@@ -65,7 +65,7 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
 
     pub fn swap(&mut self, buf1: D) -> D {
         // SAFETY: Nothing here can panic, and it's back in place before return. Do not read
-        // self.inner after this
+        // self.inner until reassigned
         let xfer = unsafe { ManuallyDrop::take(&mut self.inner) };
         let (ch, pcc, buf2) = xfer.stop();
         // SAFETY: Buf1 is of same type as Buf2, so swapping is valid as long as the transfer was
@@ -82,7 +82,7 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
     pub fn restart(&mut self, priority: Option<PriorityLevel>) {
         self.priority = priority.unwrap_or(self.priority);
         // SAFETY: Nothing here can panic, and it's back in place before return. Do not read
-        // self.inner after this
+        // self.inner until reassigned
         let xfer = unsafe { ManuallyDrop::take(&mut self.inner) };
         let (ch, pcc, fb) = xfer.stop();
         let ch = ch.reset();
