@@ -2,17 +2,17 @@ use core::ops::{Deref, DerefMut};
 
 use atsamd_hal::dmac::Buffer;
 
+pub const fn fb_size(h_res: usize, v_res: usize) -> usize {
+    let fb_size = h_res * v_res * 2;
+    assert!(fb_size <= 65535, "Frame Buffer too large for single DMA");
+    fb_size
+}
+
 #[repr(C, align(2))]
 pub struct FrameBuf<const SIZE: usize>([u8; SIZE]);
 impl<const SIZE: usize> FrameBuf<SIZE> {
-    pub const fn fb_size(h_res: usize, v_res: usize) -> usize {
-        let fb_size = h_res * v_res * 2;
-        let _ = assert!(fb_size <= 65535, "Frame Buffer too large for single DMA");
-        fb_size
-    }
-
     pub const fn new() -> Self {
-        let _ = assert!(SIZE <= 65535, "Frame Buffer too large for single DMA");
+        assert!(SIZE <= 65535, "Frame Buffer too large for single DMA");
         Self([0u8; SIZE])
     }
 
@@ -65,5 +65,11 @@ impl<const SIZE: usize> Deref for FrameBuf<SIZE> {
 impl<const SIZE: usize> DerefMut for FrameBuf<SIZE> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl<const SIZE: usize> Default for FrameBuf<SIZE> {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -6,7 +6,7 @@ use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _, SyncPins};
 
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
-    dmac::{self, Buffer, Busy, Channel, PriorityLevel},
+    dmac::{self, Busy, Channel, PriorityLevel},
     fugit::{self, ExtU64 as _, Rate},
     gpio::{PA15, PB15, Pin, PushPullOutput},
 };
@@ -21,7 +21,7 @@ pub mod sensors;
 use rtic_time::Monotonic;
 use sensors::sensor::*;
 
-pub use crate::framebuf::FrameBuf;
+pub use crate::framebuf::{FrameBuf, fb_size};
 use crate::safe_dma::SafeTransfer;
 use crate::sensors::{H_RES, V_RES};
 
@@ -48,7 +48,7 @@ impl seal::Sealed for Disabled {}
 /// ```rust
 /// const H_RES: usize = 160;
 /// const V_RES: usize = 120;
-/// const FB_SIZE = FrameBuf::fb_size(H_RES, V_RES);
+/// const FB_SIZE = fb_size(H_RES, V_RES);
 /// let cam: Camera<_, _, _, _,FB_SIZE> = Cam::new(..);
 /// let cam = cam.init(&init_regs(H_RES, V_RES, 8), PriotityLevel::Lvl3);
 /// ```
@@ -206,7 +206,7 @@ where
 
         self.write_regs(regs).await?;
 
-        if let Some(_) = power_cycle {
+        if power_cycle.is_some() {
             D::delay(100.millis()).await;
             self.write_reg(0x3008, 0x02).await?; // SW Power up
         }
@@ -279,7 +279,7 @@ where
         pclk_div: u8,
         bit_mode: u8,
     ) -> Result<(), I2C::Error> {
-        assert!(pll_multiplier >= 4 && pll_multiplier <= 252);
+        assert!((4..=252).contains(&pll_multiplier));
         assert!(pll_sys_div <= 15);
         assert!(pre_div <= 8);
         assert!(pclk_div <= 31);
