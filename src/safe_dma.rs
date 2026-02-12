@@ -44,6 +44,11 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
         }
     }
 
+    /// # Safety
+    ///
+    /// The caller must ensure the source and destination buffers form a valid
+    /// `BufferPair` (matching lengths, or one has length 1). The channel must
+    /// not have an active transfer in progress.
     unsafe fn start_transfer_reinit<R: Uninit>(
         channel: Channel<C, R>,
         source: S,

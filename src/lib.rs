@@ -75,11 +75,15 @@ pub struct Camera<
     _en: PhantomData<S>,
 }
 
+// SAFETY: Camera is Send provided all owned generic types are Send.
+// The remaining fields (SafeTransfer, Pin, SyncPins, GclkOut, FrameBuf refs)
+// are hardware-owned singleton types that don't alias shared mutable state.
 unsafe impl<'framebuf, Id, I2C, D, S, const FB_SIZE: usize> Send
     for Camera<'framebuf, Channel<Id, dmac::Busy>, I2C, D, S, FB_SIZE>
 where
     Id: dmac::ChId,
-    D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
+    I2C: Send,
+    D: Send + Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
     S: State,
 {
 }
@@ -106,6 +110,7 @@ where
         pcc.configure(|pcc| {
             pcc.mr().modify(|_, w| {
                 // Configure Clear If Disabled on VSYNC falling edge
+                // SAFETY: CID field value 1 = clear on DEN1 falling edge (ATSAMD51 datasheet 44.6.2)
                 unsafe { w.cid().bits(1) }
             });
         });

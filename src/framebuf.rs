@@ -39,6 +39,8 @@ impl<const SIZE: usize> FrameBuf<SIZE> {
     }
 }
 
+// SAFETY: FrameBuf is a contiguous [u8; SIZE] (via repr(C)), so dma_ptr returns a valid
+// pointer to SIZE bytes of DMA-accessible memory. Delegates to the array's own Buffer impl.
 unsafe impl<const SIZE: usize> Buffer for &mut FrameBuf<SIZE> {
     type Beat = u8;
 
