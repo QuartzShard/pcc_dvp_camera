@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _, SyncPins};
+use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _};
 
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
@@ -222,10 +222,10 @@ where
 
     /// Spin-Wait for VSYNC falling edge
     /// PERF: Make Async with ExtInt
-    async fn vsync(sync: &SyncPins) {
+    pub async fn vsync(&self) {
         log_debug!("Wait for VSYNC Falling edge");
-        while sync.den1.is_low() {}
-        while sync.den1.is_high() {}
+        while self.cam_sync.den1.is_low() {}
+        while self.cam_sync.den1.is_high() {}
     }
 
     async fn write_reg(&mut self, reg: u16, val: u8) -> Result<(), I2C::Error> {
@@ -334,13 +334,20 @@ where
     }
 
     /// Read a complete frame from the camera
-    pub async fn read_frame(&mut self) -> Option<&mut FrameBuf<FB_SIZE>> {
-        Self::vsync(&self.cam_sync).await;
+    ///
+    /// # Panics
+    ///
+    /// Panics if a framebuffer has been mishandled/lost from the camera's interals. Outside
+    /// callers cannot do this
+    pub async fn read_frame(&mut self) -> &mut FrameBuf<FB_SIZE> {
+        self.vsync().await;
         let full_buf = self
             .pcc_xfer_handle
             .swap(self.inactive_buf.take().expect("Framebuffer missing"));
         self.inactive_buf.replace(full_buf);
-        self.inactive_buf.as_deref_mut()
+        self.inactive_buf
+            .as_deref_mut()
+            .expect("Framebuffer missing")
     }
 
     /// Configure window position, locked to the contant resolution

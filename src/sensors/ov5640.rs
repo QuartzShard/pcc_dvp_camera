@@ -4,6 +4,8 @@ pub const SENSOR_H: usize = 2608;
 pub const SENSOR_V: usize = 1952;
 pub const H_OFFSET: usize = 16;
 pub const V_OFFSET: usize = 4;
+pub const H_BLANKING: usize = 252;
+pub const V_BLANKING: usize = 24;
 
 pub const REG_DLY: u16 = 0xFFFF;
 // 7-bit I2C address (0x78 >> 1)
@@ -63,17 +65,19 @@ pub const fn init_regs(
     arrcat::concat_arrays!(
         length_type = InitLen;
         INIT_START,
-        resolution: [_; 16],
+        resolution: [_; 20],
         INIT_END
     )
 }
 
 // TODO: HTS and VTS
-pub const fn resolution_regs(h_res: usize, v_res: usize, image_scale: usize) -> [(u16, u8); 16] {
+pub const fn resolution_regs(h_res: usize, v_res: usize, image_scale: usize) -> [(u16, u8); 20] {
     let x_start: u16 = (SENSOR_H - (h_res * image_scale + 2 * H_OFFSET)) as u16 / 2;
     let x_end: u16 = SENSOR_H as u16 - x_start;
     let y_start: u16 = (SENSOR_V - (v_res * image_scale + 2 * V_OFFSET)) as u16 / 2;
     let y_end: u16 = SENSOR_V as u16 - y_start;
+    let hts: u16 = x_end - x_start + H_BLANKING as u16;
+    let vts: u16 = y_end - y_start + V_BLANKING as u16;
 
     assert!(
         (h_res * image_scale) as u16 == x_end - x_start - 2 * H_OFFSET as u16,
@@ -91,6 +95,8 @@ pub const fn resolution_regs(h_res: usize, v_res: usize, image_scale: usize) -> 
         (v_res * image_scale) <= SENSOR_V - 2 * V_OFFSET,
         "Source frame too tall, reduce scale or output resolution"
     );
+    assert!(hts as usize > h_res, "HTS cannot be smaller than H_RES");
+    assert!(vts as usize > v_res, "VTS cannot be smaller than V_RES");
 
     [
         // === TIMING CONTROL (160x120 from centered 1280x960) ===
@@ -111,6 +117,11 @@ pub const fn resolution_regs(h_res: usize, v_res: usize, image_scale: usize) -> 
         (0x3811, (H_OFFSET & 0xFF) as u8), // H offset low
         (0x3812, (V_OFFSET >> 8) as u8),   // V offset high
         (0x3813, (V_OFFSET & 0xFF) as u8), // V offset low
+        // === TOTAL SIZE (Frame + Blanking) ===
+        (X_TOTAL_SIZE_H, (hts >> 8) as u8),
+        (X_TOTAL_SIZE_L, (hts & 0xFF) as u8),
+        (Y_TOTAL_SIZE_H, (vts >> 8) as u8),
+        (Y_TOTAL_SIZE_L, (vts & 0xFF) as u8),
     ]
 }
 // OV5640 register definitions.
