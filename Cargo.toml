@@ -7,7 +7,7 @@ edition = "2024"
 embedded-hal = { version = "1.0.0", features = ["defmt-03"] }
 atsamd51-pcc = { git="https://github.com/QuartzShard/atsamd51-pcc", default-features = false, features = [] }
 defmt = "1.0.1"
-atsamd-hal = { version = "0.22.2", optional = true, features=["dma", "defmt", "async"]}
+atsamd-hal = { version = "0.23.3", optional = true, features=["dma", "defmt", "async"]}
 embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
 fugit = { version = "0.3.9", features = ["defmt"] }
 rtic-time = "2.0.1"
