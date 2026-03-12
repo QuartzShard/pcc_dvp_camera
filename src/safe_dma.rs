@@ -1,15 +1,11 @@
 use core::mem::ManuallyDrop;
 
 use atsamd_hal::dmac::{
-    Buffer, BufferPair, BurstLength, Busy, ChId, Channel, FifoThreshold, PriorityLevel, Status,
-    Transfer, TriggerAction, TriggerSource, Uninitialized, UninitializedFuture,
+    Blocked, Buffer, BufferPair, BurstLength, Busy, ChId, Channel, FifoThreshold, PriorityLevel,
+    Transfer, TriggerAction, TriggerSource, Uninitialized,
 };
 
-type BusyChannel<Id> = Channel<Id, Busy>;
-
-pub trait Uninit: Status {}
-impl Uninit for Uninitialized {}
-impl Uninit for UninitializedFuture {}
+type BusyChannel<Id> = Channel<Id, Busy, Blocked>;
 
 pub(crate) struct SafeTransfer<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> {
     inner: ManuallyDrop<Transfer<BusyChannel<C>, BufferPair<S, D>>>,
@@ -22,8 +18,8 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
     /// # Panics
     /// Will panic if contructed with an invalid BufferPair, where two buffers of len > 1 do not
     /// match in length
-    pub fn new<R: Uninit>(
-        channel: Channel<C, R>,
+    pub fn new(
+        channel: Channel<C, Uninitialized, Blocked>,
         source: S,
         dest: D,
         priority: PriorityLevel,
@@ -49,17 +45,16 @@ impl<C: ChId, S: Buffer<Beat = u8>, D: Buffer<Beat = u8>> SafeTransfer<C, S, D> 
     /// The caller must ensure the source and destination buffers form a valid
     /// `BufferPair` (matching lengths, or one has length 1). The channel must
     /// not have an active transfer in progress.
-    unsafe fn start_transfer_reinit<R: Uninit>(
-        channel: Channel<C, R>,
+    unsafe fn start_transfer_reinit(
+        channel: Channel<C, Uninitialized, Blocked>,
         source: S,
         dest: D,
         priority: PriorityLevel,
-    ) -> ManuallyDrop<Transfer<Channel<C, Busy>, BufferPair<S, D>>> {
+    ) -> ManuallyDrop<Transfer<Channel<C, Busy, Blocked>, BufferPair<S, D>>> {
         ManuallyDrop::new(unsafe {
             // SAFETY: This is valid as the only difference is PhantomData, so long as we don't
             // break contract by enabling the TCMPL interrupt or coercing a busy/ready channel to
             // uninit (enforced by R: Uninit)
-            let channel: Channel<C, Uninitialized> = core::mem::transmute(channel);
             let mut channel = channel.init(priority);
             channel.burst_length(BurstLength::Single);
             channel.fifo_threshold(FifoThreshold::_8beats);

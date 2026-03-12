@@ -6,7 +6,7 @@ use atsamd51_pcc::{self as pcc, Pcc, ReadablePin as _};
 
 use atsamd_hal::{
     clock::v2::gclk::GclkOut,
-    dmac::{self, Busy, Channel, PriorityLevel},
+    dmac::{self, Blocked, Busy, Channel, PriorityLevel, Uninitialized},
     fugit::{self, ExtU64 as _, Rate},
     gpio::{PA15, PB15, Pin, PushPullOutput},
 };
@@ -94,9 +94,9 @@ where
     Id: dmac::ChId,
     D: Monotonic<Duration = fugit::Duration<u64, 1, 32768>>,
 {
-    pub fn new<R: safe_dma::Uninit>(
+    pub fn new(
         mut pcc: Pcc<PccMode>,
-        channel: Channel<Id, R>,
+        channel: Channel<Id, Uninitialized, Blocked>,
         i2c: I2C,
         mut pa15: Pin<PA15, PushPullOutput>,
         pb19: GclkOut<PB15>,

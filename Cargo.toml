@@ -5,13 +5,16 @@ edition = "2024"
 
 [dependencies]
 embedded-hal = { version = "1.0.0", features = ["defmt-03"] }
-atsamd51-pcc = { git="https://github.com/QuartzShard/atsamd51-pcc", default-features = false, features = [] }
+atsamd51-pcc = { path = "../atsamd51-pcc", default-features = false, features = [] }
 defmt = "1.0.1"
 atsamd-hal = { version = "0.23.3", optional = true, features=["dma", "defmt", "async"]}
 embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
 fugit = { version = "0.3.9", features = ["defmt"] }
 rtic-time = "2.0.1"
 arrcat = "0.1.1"
+
+[patch.crates-io]
+atsamd-hal = {path = "../atsamd/hal"}
 
 [features]
 default = ["ov5640", "samd51j"]

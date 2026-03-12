@@ -22,8 +22,6 @@ checksum = "98a2f6f53f9419b4445e2786ce1f44bc6648998a2dc71e7db0b44bddc2536da5"
 [[package]]
 name = "atsamd-hal"
 version = "0.23.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d5d921cff0fd6fceed33f484b48fff317cbb73351630deca45c663ac3cca421"
 dependencies = [
  "aes",
  "atsamd-hal-macros",
@@ -66,8 +64,6 @@ dependencies = [
 [[package]]
 name = "atsamd-hal-macros"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae9d1e473cf24a5deb7966c2e2559e0d739ca7734c0f1b9a058ef31e8188e9f4"
 dependencies = [
  "litrs",
  "phf",
@@ -88,8 +84,6 @@ dependencies = [
 [[package]]
 name = "atsamd51g"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "167625584d95a2ec51a4bd57474168d2f695bff775b0b0b942cd5dbc7f361bd6"
 dependencies = [
  "cortex-m",
  "critical-section",
@@ -99,8 +93,6 @@ dependencies = [
 [[package]]
 name = "atsamd51j"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ab7e107d868d11815375ae1bc3d3370be42c1c7ac984d13bb1ab3037836343"
 dependencies = [
  "cortex-m",
  "critical-section",
@@ -110,8 +102,6 @@ dependencies = [
 [[package]]
 name = "atsamd51n"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3342397fbd189b931a56dd06333ada4dfb532a775a1afa8dd8a9046afd87aa3"
 dependencies = [
  "cortex-m",
  "critical-section",
@@ -121,8 +111,6 @@ dependencies = [
 [[package]]
 name = "atsamd51p"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12556e5e96dc6527acc472b8432cee241274a2278732b1068984df7a678984d3"
 dependencies = [
  "cortex-m",
  "critical-section",
@@ -132,8 +120,6 @@ dependencies = [
 [[package]]
 name = "atsame51g"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e3ab0950b71e75725315a989ef4c775c9923c3d849f4effe0c71aaccc8ce6c0"
 dependencies = [
  "cortex-m",
  "critical-section",
@@ -143,8 +129,6 @@ dependencies = [
 [[package]]
 name = "atsame51j"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d496aeaf9906845b3145e8b4d2d6c90be5259a8ff5b1d1b4a73a032fd6f887a1"
 dependencies = [
  "cortex-m",
  "critical-section",
@@ -154,8 +138,6 @@ dependencies = [
 [[package]]
 name = "atsame51n"
 version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29cd61ea3b04f7abb76ddd28c67abab6f30fea68ec0d37c023205438f564a0f5"
 dependencies = [
  "cortex-m",
  "critical-section",
